@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Layout, Point } from "../domain/types";
 import { deriveWalls, nearestWall } from "../domain/walls";
-import { bbox, centroid } from "../domain/geometry";
+import { bbox, centroid, pointInPolygon } from "../domain/geometry";
 import { effectiveBeam, effectiveHeight, hasBeam, hugsWall, resolveKind } from "../domain/entities";
 import { coverInward, coverView, curtainPanels, wallInward } from "../domain/covers";
 import type { HassLike } from "../ha/types";
@@ -74,7 +74,9 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
 
   const render = () => {
     const t = three.current;
-    if (t) t.renderer.render(t.scene, t.camera);
+    if (!t) return;
+    applyCutaway(t.scene, t.camera, t.controls.target);
+    t.renderer.render(t.scene, t.camera);
   };
 
   /** Fit the orthographic frustum to the container; zoom is left to OrbitControls. */
@@ -147,6 +149,36 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
   );
 }
 
+interface CutawayWall {
+  mesh: THREE.Mesh;
+  h: number;
+  /** Unit normal in (x, z). */
+  n: [number, number];
+  roomPlus: boolean;
+  roomMinus: boolean;
+  cutH: number;
+}
+
+/**
+ * Sims-style cutaway: a wall that has a room on the side facing away from the
+ * camera would hide that room, so it is lowered. Far exterior walls stay tall.
+ */
+function applyCutaway(scene: THREE.Scene, camera: THREE.Camera, target: THREE.Vector3) {
+  const list = (scene.userData.cutaway as CutawayWall[] | undefined) ?? [];
+  const cx = camera.position.x - target.x;
+  const cz = camera.position.z - target.z;
+  const cl = Math.hypot(cx, cz) || 1;
+  const dx = cx / cl;
+  const dz = cz / cl;
+  for (const w of list) {
+    const facing = w.n[0] * dx + w.n[1] * dz; // >0: +n side faces the camera
+    const farHasRoom = facing > 0 ? w.roomMinus : w.roomPlus;
+    const target_h = farHasRoom ? Math.min(w.h, w.cutH) : w.h;
+    w.mesh.scale.y = target_h / w.h;
+    w.mesh.position.y = target_h / 2;
+  }
+}
+
 function layoutSizeM(layout: Layout) {
   const mpu = layout.metresPerUnit;
   const pts: Point[] = layout.rooms.flatMap((r) => r.points);
@@ -213,6 +245,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
   }
 
   const walls = deriveWalls(layout);
+  const cutaway: CutawayWall[] = [];
   // Walls.
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.9 });
   const wallMatExt = new THREE.MeshStandardMaterial({ color: 0xd9dee5, roughness: 0.9 });
@@ -237,7 +270,24 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     scene.add(mesh);
+    // Cutaway bookkeeping: which side of the wall has a room (probe 0.3 m to each side, canvas units).
+    const nx = -(w.b[1] - w.a[1]);
+    const nz = w.b[0] - w.a[0];
+    const nl = Math.hypot(nx, nz) || 1;
+    const probe = 0.3 / mpu;
+    const mid: Point = [(w.a[0] + w.b[0]) / 2, (w.a[1] + w.b[1]) / 2];
+    const plus: Point = [mid[0] + (nx / nl) * probe, mid[1] + (nz / nl) * probe];
+    const minus: Point = [mid[0] - (nx / nl) * probe, mid[1] - (nz / nl) * probe];
+    cutaway.push({
+      mesh,
+      h,
+      n: [nx / nl, nz / nl],
+      roomPlus: layout.rooms.some((r) => pointInPolygon(plus, r.points)),
+      roomMinus: layout.rooms.some((r) => pointInPolygon(minus, r.points)),
+      cutH: w.exterior ? 0.5 : 0.9,
+    });
   }
+  scene.userData.cutaway = cutaway;
 
   // Furniture.
   for (const f of layout.furniture ?? []) {

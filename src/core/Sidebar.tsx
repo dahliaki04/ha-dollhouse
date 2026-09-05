@@ -9,7 +9,7 @@ import { importBackground } from "./background";
 import { KELVIN_PRESETS, kelvinToHex, lightColor } from "./markers";
 import { addFurniture, addItems, applyThickness, applyVirtual, removeFurniture, removeItem, removeRoom, resetThickness, setBackground, updateFurniture, updateItem, updateRoom, type Selection } from "./useEditor";
 import { FURNITURE, FURNITURE_GROUPS, makeFurniture, type Furniture, type FurnitureType } from "../domain/furniture";
-import { centroid } from "../domain/geometry";
+import { centroid, pointInPolygon } from "../domain/geometry";
 import { EntityPicker } from "./EntityPicker";
 import { VERSION } from "../version";
 import { PanelHeader, Section, type Toast } from "./ui";
@@ -361,6 +361,40 @@ function RoomPanel(p: SidebarProps & { room: Room }) {
           </div>
         ))}
       </section>
+      {(() => {
+        const inside = layout.items.filter((i) => pointInPolygon([i.x, i.y], room.points));
+        const dead = (id: string) => { const st = hass.states[id]?.state; return !st || st === "unavailable" || st === "unknown"; };
+        const removeIds = (ids: string[]) => {
+          const set = new Set(ids);
+          p.onCommit({ ...layout, items: layout.items.filter((i) => !set.has(i.id)) });
+          p.onNotify?.(`已移除 ${ids.length} 個裝置，可用復原鍵還原`);
+        };
+        return (
+          <section>
+            <div className="dh-row" style={{ justifyContent: "space-between" }}>
+              <h3 style={{ margin: 0 }}>這間裡的裝置 ({inside.length})</h3>
+              <span className="dh-row">
+                {inside.some((i) => dead(i.entityId)) && <button className="dh-btn small" onClick={() => removeIds(inside.filter((i) => dead(i.entityId)).map((i) => i.id))}>移除 unavailable</button>}
+                {inside.length > 0 && <button className="dh-btn small danger" onClick={() => removeIds(inside.map((i) => i.id))}>整間清空</button>}
+              </span>
+            </div>
+            {inside.length === 0 && <div className="dh-muted">還沒有裝置放在這間。</div>}
+            <ul className="dh-list">
+              {inside.map((i) => (
+                <li key={i.id} style={{ gap: 6 }}>
+                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }} onClick={() => p.onSelect({ kind: "item", id: i.id })} title="在畫布上選取">
+                    {friendlyName(hass, i.entityId)}
+                    <span className={dead(i.entityId) ? "dh-muted" : "dh-muted"} style={{ marginLeft: 6, fontSize: 11, color: dead(i.entityId) ? "#dc2626" : undefined }}>{hass.states[i.entityId]?.state ?? "unavailable"}</span>
+                  </span>
+                  <button className="dh-btn small danger" onClick={() => removeIds([i.id])}>移除</button>
+                </li>
+              ))}
+            </ul>
+            <div className="dh-muted">依圖示實際位置判斷，不看 area。</div>
+          </section>
+        );
+      })()}
+
       <section>
         <h3>加入裝置到這間</h3>
         <EntityPicker hass={hass} layout={layout} room={room} onAdd={(ids) => {

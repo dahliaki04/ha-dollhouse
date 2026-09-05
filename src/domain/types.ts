@@ -34,6 +34,8 @@ export interface Item {
   z?: number;
   /** Rotation in degrees, for wall lights / strips. */
   rotation?: number;
+  /** Physical length in metres (strips). Default 1.0. */
+  length?: number;
   kind: ItemKind;
   fixture?: FixtureType;
   /** For generic items: which attribute to show instead of state. */

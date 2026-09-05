@@ -28,6 +28,8 @@ export function demoLayout(hass: HassLike): Layout {
     if (!r.areaId) continue;
     layout.items.push(...autoPlace(hass, r, entitiesInArea(hass, r.areaId), layout.items, 1.0 / layout.metresPerUnit));
   }
+  const strip = layout.items.find((i) => i.entityId === "light.living_strip");
+  if (strip) Object.assign(strip, { length: 2.5, x: 3 * m, y: 0.4 * m });
   // Make the living/dining partition thinner so the override path is exercised.
   layout.wallThickness["w:r_dining|r_living|1"] = 0.1;
   return layout;

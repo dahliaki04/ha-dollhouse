@@ -297,8 +297,23 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
           </div>
         </div>
       )}
-      {(item.fixture === "wall" || item.fixture === "strip") && (
-        <NumberField label="旋轉 (°)" value={item.rotation ?? 0} step={15} onChange={(v) => p.onCommit(updateItem(layout, item.id, { rotation: v }))} />
+      {kind === "light" && item.fixture === "strip" && (
+        <div className="dh-field">
+          <label>燈條長度 (m)</label>
+          <div className="dh-row">
+            <input type="number" min={0.1} max={20} step={0.1} style={{ width: 90 }} value={item.length ?? 1} onChange={(e) => { const v = Number(e.target.value); if (v > 0) p.onCommit(updateItem(layout, item.id, { length: v })); }} />
+            {[0.5, 1, 1.5, 2, 3, 4].map((v) => <button key={v} className={`dh-btn small${(item.length ?? 1) === v ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { length: v }))}>{v}</button>)}
+          </div>
+        </div>
+      )}
+      {kind === "light" && (item.fixture === "wall" || item.fixture === "strip") && (
+        <div className="dh-field">
+          <label>旋轉 (°)</label>
+          <div className="dh-row">
+            <input type="number" step={15} style={{ width: 90 }} value={item.rotation ?? 0} onChange={(e) => p.onCommit(updateItem(layout, item.id, { rotation: Number(e.target.value) || 0 }))} />
+            {[0, 90].map((v) => <button key={v} className={`dh-btn small${(item.rotation ?? 0) === v ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { rotation: v }))}>{v === 0 ? "橫" : "直"}</button>)}
+          </div>
+        </div>
       )}
       {kind === "generic" && (
         <>

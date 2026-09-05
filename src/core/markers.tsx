@@ -58,13 +58,15 @@ function LightGlyph({ item, hass, m }: { item: Item; hass: HassLike; m: number }
   const glow = on ? <circle r={0.55 * m} fill={color} opacity={0.18 + 0.35 * b} filter="url(#dh-glow)" /> : null;
   const fixture = item.fixture ?? "downlight";
   switch (fixture) {
-    case "strip":
+    case "strip": {
+      const L = (item.length ?? 1) * m;
       return (
         <>
-          {on && <rect x={-0.6 * m} y={-0.12 * m} width={1.2 * m} height={0.24 * m} rx={0.12 * m} fill={color} opacity={0.35} filter="url(#dh-glow)" />}
-          <rect x={-0.5 * m} y={-0.05 * m} width={1.0 * m} height={0.1 * m} rx={0.05 * m} fill={on ? color : "#fff"} stroke={stroke} strokeWidth={0.02 * m} />
+          {on && <rect x={-L / 2 - 0.1 * m} y={-0.12 * m} width={L + 0.2 * m} height={0.24 * m} rx={0.12 * m} fill={color} opacity={0.35} filter="url(#dh-glow)" />}
+          <rect x={-L / 2} y={-0.05 * m} width={L} height={0.1 * m} rx={0.05 * m} fill={on ? color : "#fff"} stroke={stroke} strokeWidth={0.02 * m} />
         </>
       );
+    }
     case "wall":
       return (
         <>

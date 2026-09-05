@@ -192,7 +192,8 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       const bright = brightness01(hass, item.entityId);
       const mat = new THREE.MeshStandardMaterial({ color: on ? color : 0xd1d5db, emissive: on ? color : 0x000000, emissiveIntensity: on ? 0.8 + bright : 0 });
       let geo: THREE.BufferGeometry;
-      if (fixture === "strip") geo = new THREE.BoxGeometry(1.0, 0.04, 0.06);
+      const L = item.length ?? 1;
+      if (fixture === "strip") geo = new THREE.BoxGeometry(L, 0.04, 0.06);
       else if (fixture === "wall") geo = new THREE.SphereGeometry(0.12, 16, 8, 0, Math.PI);
       else if (fixture === "pendant") geo = new THREE.ConeGeometry(0.18, 0.2, 20, 1, true);
       else if (fixture === "ceiling") geo = new THREE.CylinderGeometry(0.25, 0.25, 0.06, 24);
@@ -211,8 +212,10 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
         pl.position.set(x, Math.min(y, 2.6) - 0.1, z);
         scene.add(pl);
         // Light pool on the floor.
-        const pool = new THREE.Mesh(new THREE.CircleGeometry(fixture === "strip" ? 0.9 : 0.7, 24), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18 + 0.2 * bright, depthWrite: false }));
+        const poolGeo = fixture === "strip" ? new THREE.PlaneGeometry(L + 0.6, 1.2) : new THREE.CircleGeometry(0.7, 24);
+        const pool = new THREE.Mesh(poolGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18 + 0.2 * bright, depthWrite: false }));
         pool.rotation.x = -Math.PI / 2;
+        pool.rotation.z = THREE.MathUtils.degToRad(-(item.rotation ?? 0));
         pool.position.set(x, 0.02, z);
         scene.add(pool);
       }

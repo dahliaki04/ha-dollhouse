@@ -1,0 +1,14 @@
+{
+  "domain": "dollhouse",
+  "name": "Dollhouse",
+  "codeowners": ["@dahliaki04"],
+  "config_flow": true,
+  "dependencies": ["frontend", "http", "websocket_api"],
+  "documentation": "https://github.com/dahliaki04/ha-dollhouse",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/dahliaki04/ha-dollhouse/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}

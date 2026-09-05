@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Dollhouse 娃娃屋",
+        "description": "在側欄加入 Dollhouse 面板。畫房間、拖裝置，用 2D 平面圖或 3D 娃娃屋視圖看你的家。"
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Dollhouse 已經設定過了。"
+    }
+  }
+}

@@ -17,5 +17,10 @@
   "include": [
     "src/**/*.ts",
     "dev/**/*.ts"
+  ],
+  "exclude": [
+    "**/*.from-cabinet-abacus.*",
+    "node_modules",
+    "dist"
   ]
 }

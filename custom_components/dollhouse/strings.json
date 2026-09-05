@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Dollhouse",
+        "description": "Adds a Dollhouse panel to the sidebar. Draw rooms, drag entities, view your home as a 2D plan or 3D dollhouse."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Dollhouse is already set up."
+    }
+  }
+}

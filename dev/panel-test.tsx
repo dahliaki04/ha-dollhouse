@@ -30,4 +30,5 @@ if (new URLSearchParams(location.search).get("demo") === "reset") localStorage.r
 
 host.appendChild(el);
 el.hass = hass;
+if (new URLSearchParams(location.search).has("scroll")) setTimeout(() => { const b = el.shadowRoot?.querySelector(".dh-body"); if (b) b.scrollTop = 900; }, 1200);
 el.addEventListener("hass-more-info", (e) => console.log("more-info", (e as CustomEvent).detail));

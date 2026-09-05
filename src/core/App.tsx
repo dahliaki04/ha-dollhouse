@@ -29,6 +29,8 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   layoutRef.current = state.layout;
 
   const rootRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" }); }, [state.view]);
   useEffect(() => {
     const root = rootRef.current?.getRootNode();
     injectStyles(root instanceof ShadowRoot ? root : document);
@@ -152,7 +154,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
         <span className="dh-spacer" />
         <span className="dh-muted dh-save">{saveState === "saving" ? "儲存中…" : saveState === "error" ? "儲存失敗" : state.dirty ? "未儲存" : loaded ? "已儲存" : ""}</span>
       </div>
-      <div className="dh-body">
+      <div className="dh-body" ref={bodyRef}>
         {state.view === "2d" || !render3D ? (
           <Canvas2D
             layout={state.layout}

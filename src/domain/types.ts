@@ -15,6 +15,9 @@ export type ItemKind = "auto" | "light" | "climate" | "presence" | "cover" | "ge
 /** curtain = side-draw 橫拉, roller = top-down 上下 (roller/honeycomb/shade), blind = slats with tilt 百葉 */
 export type CoverStyle = "curtain" | "roller" | "blind";
 
+/** Where the object is mounted. Drives the 3D height (and the default z). */
+export type Mount = "ceiling" | "wall" | "floor";
+
 export interface Room {
   id: string;
   name: string;
@@ -33,8 +36,10 @@ export interface Item {
   entityId: string;
   x: number;
   y: number;
-  /** Height above floor in metres (3D). Defaults per fixture. */
-  z?: number;
+  /** Mounting position; default depends on kind/fixture. */
+  mount?: Mount | null;
+  /** Custom height above floor in metres; overrides the mount preset. */
+  z?: number | null;
   /** Rotation in degrees, for wall lights / strips. */
   rotation?: number;
   /** Physical length in metres (strips). Default 1.0. */

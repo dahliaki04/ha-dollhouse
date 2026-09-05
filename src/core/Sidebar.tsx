@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import type { CoverStyle, FixtureType, Item, ItemKind, Layout, Wall } from "../domain/types";
 import { coverView, guessCoverStyle } from "../domain/covers";
-import { autoPlace, entitiesInArea, makeItem, PLACEABLE_DOMAINS, resolveKind } from "../domain/entities";
+import { autoPlace, defaultMount, effectiveHeight, entitiesInArea, makeItem, mountHeight, PLACEABLE_DOMAINS, resolveKind } from "../domain/entities";
+import type { Mount } from "../domain/types";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 import { importBackground } from "./background";
 import { KELVIN_PRESETS, kelvinToHex, lightColor } from "./markers";
@@ -378,6 +379,25 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
           </div>
         </>
       )}
+      {kind !== "cover" && (() => {
+        const ceiling = layout.wallDefaults.height;
+        const dm = defaultMount(item, hass);
+        const cur = item.mount ?? dm;
+        const MOUNTS: { v: Mount; label: string }[] = [{ v: "ceiling", label: "天花板" }, { v: "wall", label: "牆面" }, { v: "floor", label: "地面" }];
+        const h = effectiveHeight(item, hass, ceiling);
+        return (
+          <div className="dh-field">
+            <label>安裝高度 {item.z != null ? `（自訂 ${h.toFixed(2)} m）` : item.mount ? `（${MOUNTS.find((x) => x.v === cur)?.label} ${h.toFixed(2)} m）` : `（預設 ${MOUNTS.find((x) => x.v === dm)?.label} ${h.toFixed(2)} m）`}</label>
+            <div className="dh-row">
+              {MOUNTS.map((mo) => (
+                <button key={mo.v} className={`dh-btn small${cur === mo.v && item.z == null ? " on" : ""}`} title={`${mountHeight(item, mo.v, hass, ceiling).toFixed(2)} m`} onClick={() => p.onCommit(updateItem(layout, item.id, { mount: mo.v, z: null }))}>{mo.label}</button>
+              ))}
+              <input type="number" min={0} max={ceiling} step={0.05} style={{ width: 80 }} value={Math.round(h * 100) / 100} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) p.onCommit(updateItem(layout, item.id, { z: Math.min(ceiling, Math.max(0, v)) })); }} />
+              <span className="dh-muted">m</span>
+            </div>
+          </div>
+        );
+      })()}
       <div className="dh-muted">位置 ({(item.x * layout.metresPerUnit).toFixed(2)}, {(item.y * layout.metresPerUnit).toFixed(2)}) m</div>
       <div className="dh-row" style={{ marginTop: 10 }}>
         <button className="dh-btn danger" onClick={() => { p.onCommit(removeItem(layout, item.id)); p.onSelect(null); }}>移除</button>

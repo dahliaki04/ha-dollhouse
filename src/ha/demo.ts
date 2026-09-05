@@ -30,6 +30,8 @@ export function demoLayout(hass: HassLike): Layout {
     if (!r.areaId) continue;
     layout.items.push(...autoPlace(hass, r, entitiesInArea(hass, r.areaId), layout.items, 1.0 / layout.metresPerUnit, walls));
   }
+  const ac = layout.items.find((i) => i.entityId === "climate.daikin_living");
+  if (ac) ac.mount = "ceiling"; // Daikin cassette
   const kitchen = layout.items.find((i) => i.entityId === "light.kitchen_downlight");
   if (kitchen) kitchen.color = "#f6f1e6"; // 4000K-ish, user-set: this light only reports on/off
   const strip = layout.items.find((i) => i.entityId === "light.living_strip");

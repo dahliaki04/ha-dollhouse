@@ -4,7 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Layout, Point } from "../domain/types";
 import { deriveWalls, nearestWall } from "../domain/walls";
 import { bbox, centroid } from "../domain/geometry";
-import { FIXTURE_HEIGHT, resolveKind } from "../domain/entities";
+import { effectiveHeight, resolveKind } from "../domain/entities";
 import { coverInward, coverView } from "../domain/covers";
 import type { HassLike } from "../ha/types";
 import { brightness01, lightColor } from "./markers";
@@ -239,7 +239,10 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       const on = state?.state === "on";
       const color = new THREE.Color(on ? lightColor(hass, item.entityId, item.color) : "#9ca3af");
       const fixture = item.fixture ?? "downlight";
-      const y = item.z ?? FIXTURE_HEIGHT[fixture];
+      const ceilingH = roomCeiling(layout, item);
+      const yMount = effectiveHeight(item, hass, ceilingH);
+      // Ceiling fixtures hang just below the slab; pendants drop 0.8 m.
+      const y = fixture === "pendant" && yMount >= ceilingH - 0.05 ? ceilingH - 0.8 : Math.min(yMount, ceilingH - 0.03);
       const bright = brightness01(hass, item.entityId);
       const mat = new THREE.MeshStandardMaterial({ color: on ? color : 0xd1d5db, emissive: on ? color : 0x000000, emissiveIntensity: on ? 0.8 + bright : 0 });
       let geo: THREE.BufferGeometry;
@@ -250,17 +253,17 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       else if (fixture === "ceiling") geo = new THREE.CylinderGeometry(0.25, 0.25, 0.06, 24);
       else geo = new THREE.CylinderGeometry(0.09, 0.09, 0.03, 16);
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, Math.min(y, 2.75), z);
+      mesh.position.set(x, y, z);
       mesh.rotation.y = THREE.MathUtils.degToRad(-(item.rotation ?? 0));
       if (fixture === "pendant") {
-        const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 2.8 - y, 6), new THREE.MeshStandardMaterial({ color: 0x374151 }));
-        cord.position.set(x, y + (2.8 - y) / 2, z);
+        const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, Math.max(0.05, ceilingH - y), 6), new THREE.MeshStandardMaterial({ color: 0x374151 }));
+        cord.position.set(x, y + (ceilingH - y) / 2, z);
         scene.add(cord);
       }
       scene.add(mesh);
       if (on) {
         const pl = new THREE.PointLight(color, 5 + 14 * bright, 5, 1.6);
-        pl.position.set(x, Math.min(y, 2.6) - 0.1, z);
+        pl.position.set(x, Math.max(0.2, y - 0.1), z);
         scene.add(pl);
         // Light pool on the floor.
         const poolGeo = fixture === "strip" ? new THREE.PlaneGeometry(L + 0.6, 1.2) : new THREE.CircleGeometry(0.7, 24);
@@ -273,18 +276,46 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     } else if (kind === "climate") {
       const mode = state?.state ?? "off";
       const col = { cool: 0x3b82f6, heat: 0xf97316, dry: 0xeab308, fan_only: 0x14b8a6 }[mode as "cool"] ?? 0x9ca3af;
-      const unit = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.28, 0.22), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-      unit.position.set(x, item.z ?? 2.2, z);
-      unit.castShadow = true;
-      scene.add(unit);
-      const led = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.24), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: mode === "off" ? 0 : 0.8 }));
-      led.position.set(x, (item.z ?? 2.2) - 0.16, z);
-      scene.add(led);
+      const ceilingH = roomCeiling(layout, item);
+      const yc = effectiveHeight(item, hass, ceilingH);
+      const ledMat = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: mode === "off" ? 0 : 0.8 });
+      const white = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      const rot = THREE.MathUtils.degToRad(-(item.rotation ?? 0));
+      if (yc >= ceilingH - 0.05) {
+        // ceiling cassette: flat square panel with a lit rim
+        const unit = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.05, 0.65), white);
+        unit.position.set(x, ceilingH - 0.03, z);
+        scene.add(unit);
+        const led = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 0.5), ledMat);
+        led.position.set(x, ceilingH - 0.06, z);
+        scene.add(led);
+      } else if (yc <= 0.05) {
+        // floor-standing unit
+        const unit = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.8, 0.3), white);
+        unit.position.set(x, 0.9, z);
+        unit.rotation.y = rot;
+        unit.castShadow = true;
+        scene.add(unit);
+        const led = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.32), ledMat);
+        led.position.set(x, 1.5, z);
+        led.rotation.y = rot;
+        scene.add(led);
+      } else {
+        const unit = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.28, 0.22), white);
+        unit.position.set(x, yc, z);
+        unit.rotation.y = rot;
+        unit.castShadow = true;
+        scene.add(unit);
+        const led = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.24), ledMat);
+        led.position.set(x, yc - 0.16, z);
+        led.rotation.y = rot;
+        scene.add(led);
+      }
       const cur = state?.attributes.current_temperature as number | undefined;
       const target = state?.attributes.temperature as number | undefined;
       const txt = mode === "off" ? `${cur?.toFixed(1) ?? "--"}° 關` : `${cur?.toFixed(1) ?? "--"}° → ${target ?? "--"}°`;
       const sp = textSprite(txt, "#111827", 0.9);
-      sp.position.set(x, (item.z ?? 2.2) + 0.45, z);
+      sp.position.set(x, Math.min(ceilingH - 0.1, (yc <= 0.05 ? 1.8 : yc) + 0.45), z);
       scene.add(sp);
     } else if (kind === "cover") {
       const v = coverView(hass, item);
@@ -345,19 +376,37 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       disc.rotation.x = -Math.PI / 2;
       disc.position.set(x, 0.03, z);
       scene.add(disc);
+      const ceilingH = roomCeiling(layout, item);
+      const yp = effectiveHeight(item, hass, ceilingH);
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), new THREE.MeshStandardMaterial({ color: on ? 0x22c55e : 0xd1d5db, emissive: on ? 0x22c55e : 0x000000, emissiveIntensity: 0.6 }));
+      body.position.set(x, Math.min(yp, ceilingH - 0.06), z);
+      scene.add(body);
     } else {
       const active = state?.state === "on" || state?.state === "open" || state?.state === "playing";
-      const box = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.25, 12), new THREE.MeshStandardMaterial({ color: active ? 0x2563eb : 0x9ca3af }));
-      box.position.set(x, 0.125, z);
+      const ceilingH = roomCeiling(layout, item);
+      const yg = effectiveHeight(item, hass, ceilingH);
+      const gmat = new THREE.MeshStandardMaterial({ color: active ? 0x2563eb : 0x9ca3af });
+      let box: THREE.Mesh;
+      if (yg >= ceilingH - 0.05) box = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.03, 16), gmat);
+      else if (yg <= 0.05) box = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.25, 12), gmat);
+      else box = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.03), gmat);
+      box.position.set(x, yg >= ceilingH - 0.05 ? ceilingH - 0.02 : yg <= 0.05 ? 0.125 : yg, z);
+      box.rotation.y = THREE.MathUtils.degToRad(-(item.rotation ?? 0));
       box.castShadow = true;
       scene.add(box);
       const raw = item.attribute ? state?.attributes[item.attribute] : state?.state;
       const unit = item.attribute ? "" : ((state?.attributes.unit_of_measurement as string | undefined) ?? "");
       const sp = textSprite(`${raw ?? "?"}${unit}`, "#374151", 0.7);
-      sp.position.set(x, 0.55, z);
+      sp.position.set(x, yg >= ceilingH - 0.05 ? ceilingH - 0.3 : yg <= 0.05 ? 0.55 : yg + 0.3, z);
       scene.add(sp);
     }
   }
+}
+
+/** Ceiling height of the room containing the item, else the layout default. */
+function roomCeiling(layout: Layout, item: { x: number; y: number }): number {
+  const room = layout.rooms.find((r) => inside([item.x, item.y], r.points));
+  return room?.height ?? layout.wallDefaults.height;
 }
 
 function textSprite(text: string, color: string, scale = 1): THREE.Sprite {

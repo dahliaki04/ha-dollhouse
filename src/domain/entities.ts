@@ -1,4 +1,4 @@
-import type { FixtureType, Item, ItemKind, Layout, Point, Room, Wall } from "./types";
+import type { FixtureType, Item, ItemKind, Layout, Mount, Point, Room, Wall } from "./types";
 import { newId } from "./types";
 import { bbox, pointInPolygon } from "./geometry";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
@@ -60,6 +60,35 @@ export function guessFixture(hass: HassLike, entityId: string): FixtureType {
   if (/pendant|吊燈|吊/.test(text)) return "pendant";
   if (/ceiling|吸頂|主燈|room light|房間燈/.test(text)) return "ceiling";
   return "downlight";
+}
+
+/** Default mount per kind/fixture. */
+export function defaultMount(item: Pick<Item, "kind" | "entityId" | "fixture">, hass: HassLike): Mount {
+  const kind = resolveKind(item, hass);
+  if (kind === "light") return (item.fixture ?? "downlight") === "wall" ? "wall" : "ceiling";
+  if (kind === "climate") return "wall";
+  if (kind === "presence") return "ceiling";
+  if (kind === "cover") return "wall";
+  const dom = domainOf(item.entityId);
+  if (dom === "switch" || dom === "binary_sensor" || dom === "sensor" || dom === "lock") return "wall";
+  return "floor";
+}
+
+/** Height (m) implied by a mount preset for this item. */
+export function mountHeight(item: Pick<Item, "kind" | "entityId" | "fixture">, mount: Mount, hass: HassLike, ceiling: number): number {
+  if (mount === "ceiling") return ceiling;
+  if (mount === "floor") return 0;
+  const kind = resolveKind(item, hass);
+  if (kind === "light") return 1.9; // wall lamp
+  if (kind === "climate") return 2.2; // wall unit
+  if (kind === "presence") return 1.5;
+  return 1.2; // switches, thermostats, sensors
+}
+
+/** Effective height: custom z → mount preset → default mount. */
+export function effectiveHeight(item: Item, hass: HassLike, ceiling: number): number {
+  if (typeof item.z === "number") return Math.min(item.z, ceiling);
+  return mountHeight(item, item.mount ?? defaultMount(item, hass), hass, ceiling);
 }
 
 /** Default mounting height (m) per fixture, for 3D. */

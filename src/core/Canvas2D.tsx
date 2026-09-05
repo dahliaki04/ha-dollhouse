@@ -5,7 +5,7 @@ import { bbox, dist, rectToPolygon, snapToGrid } from "../domain/geometry";
 import { nearestWall, wallThicknessUnits } from "../domain/walls";
 import { lightColor, Marker } from "./markers";
 import { FurnitureGlyph } from "./FurnitureGlyph";
-import { RoomFrame, framePosition } from "./RoomFrame";
+import { RoomFrame, frameLayout, frameMargins } from "./RoomFrame";
 import type { Furniture } from "../domain/furniture";
 import { moveRoom, updateFurniture, updateItem, updateRoom, type Selection, type Tool } from "./useEditor";
 import type { HassLike } from "../ha/types";
@@ -64,13 +64,14 @@ export function Canvas2D(p: Canvas2DProps) {
 
   // Fit to the container's aspect ratio (so pointer→canvas mapping is exact) on mount,
   // on resize, and when the canvas size changes (new background).
-  const sizeKey = `${layout.canvas.width}x${layout.canvas.height}|${p.readOnly ? layout.rooms.map((r) => r.id).join(",") : ""}`;
+  const frameSides = frameMargins(frameLayout(layout, hass, 1 / layout.metresPerUnit), 1 / layout.metresPerUnit);
+  const sizeKey = `${layout.canvas.width}x${layout.canvas.height}|${p.readOnly ? layout.rooms.map((r) => r.id).join(",") : ""}|${frameSides.left > 0 ? "L" : ""}${frameSides.right > 0 ? "R" : ""}`;
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
     const fit = () => {
       const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) setVb(fitView(layoutRef.current, r.width / r.height, !!p.readOnly));
+      if (r.width > 0 && r.height > 0) setVb(fitView(layoutRef.current, r.width / r.height, !!p.readOnly, frameMargins(frameLayout(layoutRef.current, hass, 1 / layoutRef.current.metresPerUnit), 1 / layoutRef.current.metresPerUnit)));
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -399,11 +400,10 @@ export function Canvas2D(p: Canvas2DProps) {
     setDrag({ kind: "furn", id: f.id, start: toCanvas(e), orig: [f.x, f.y], moved: false });
   };
 
-  const startFrameDrag = (e: React.PointerEvent, room: Room) => {
+  const startFrameDrag = (e: React.PointerEvent, room: Room, pos: Point) => {
     if (tool !== "select" || e.button !== 0 || p.readOnly) return;
     e.stopPropagation();
     svgRef.current!.setPointerCapture(e.pointerId);
-    const pos = framePosition(room, m);
     setDrag({ kind: "frame", id: room.id, start: toCanvas(e), orig: pos, moved: false });
   };
 
@@ -443,6 +443,7 @@ export function Canvas2D(p: Canvas2DProps) {
     return out;
   }, [layout.rooms, layout.items, hass.states, hass]);
 
+  const placements = useMemo(() => frameLayout(layout, hass, m), [layout, hass, m]);
   const selWalls = selection?.kind === "walls" ? new Set(selection.ids) : new Set<string>();
   const selRoom = selection?.kind === "room" ? layout.rooms.find((r) => r.id === selection.id) : undefined;
   const cursor = tool === "select" ? (drag?.kind === "pan" ? "grabbing" : "default") : "crosshair";
@@ -543,8 +544,8 @@ export function Canvas2D(p: Canvas2DProps) {
         })}
 
         {/* room status frames */}
-        {layout.rooms.map((r) => (
-          <RoomFrame key={`f-${r.id}`} room={r} layout={layout} hass={hass} m={m} readOnly={p.readOnly} selected={selection?.kind === "room" && selection.id === r.id} onPointerDown={startFrameDrag} onRowTap={(it) => p.onDoubleTap(it)} />
+        {placements.map((pl) => (
+          <RoomFrame key={"f-" + pl.room.id} placement={pl} hass={hass} m={m} readOnly={p.readOnly} selected={selection?.kind === "room" && selection.id === pl.room.id} onPointerDown={startFrameDrag} onRowTap={(it) => p.onDoubleTap(it)} />
         ))}
 
         {/* drafting overlays */}
@@ -596,7 +597,7 @@ function hint(tool: Tool, polyN: number, scaleN: number, rectPending = false): s
 }
 
 /** ViewBox that shows the whole canvas and has exactly the container's aspect ratio. */
-function fitView(layout: Layout, aspect: number, toRooms = false): ViewBox {
+function fitView(layout: Layout, aspect: number, toRooms = false, margins = { left: 0, right: 0 }): ViewBox {
   const pad = 0.04;
   let bx = 0, by = 0, bw = layout.canvas.width, bh = layout.canvas.height;
   if (toRooms && layout.rooms.length) {
@@ -604,6 +605,8 @@ function fitView(layout: Layout, aspect: number, toRooms = false): ViewBox {
     const m = 0.4 / layout.metresPerUnit; // wall thickness + a little air
     bx = b.x - m; by = b.y - m; bw = b.w + 2 * m; bh = b.h + 2 * m;
   }
+  // callout columns sit outside the plan
+  bx -= margins.left; bw += margins.left + margins.right;
   const cw = bw * (1 + pad * 2);
   const ch = bh * (1 + pad * 2);
   const w = cw / ch > aspect ? cw : ch * aspect;

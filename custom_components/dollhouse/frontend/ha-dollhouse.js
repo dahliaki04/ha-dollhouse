@@ -11917,7 +11917,7 @@ function Fx({ hass: s, layout: t, room: n, onAdd: a }) {
     ] })
   ] });
 }
-const Zb = "0.2.0", Hx = "dollhouse:ui:sections";
+const Zb = "0.2.1", Hx = "dollhouse:ui:sections";
 function c_() {
   try {
     return JSON.parse(localStorage.getItem(Hx) ?? "{}");
@@ -12544,24 +12544,31 @@ function r1(s) {
   return t / 2;
 }
 function o1({ size: s = 22 }) {
-  return /* @__PURE__ */ b.jsxs("svg", { viewBox: "0 0 512 512", width: s, height: s, "aria-hidden": "true", style: { display: "block" }, children: [
-    /* @__PURE__ */ b.jsx("defs", { children: /* @__PURE__ */ b.jsxs("radialGradient", { id: "dh-mark-glow", cx: "50%", cy: "20%", r: "80%", children: [
-      /* @__PURE__ */ b.jsx("stop", { offset: "0", stopColor: "#fff7d6" }),
-      /* @__PURE__ */ b.jsx("stop", { offset: "0.45", stopColor: "#fcd34d" }),
-      /* @__PURE__ */ b.jsx("stop", { offset: "1", stopColor: "#f59e0b" })
-    ] }) }),
-    /* @__PURE__ */ b.jsx("path", { d: "M256 44 L484 226 H28 Z", fill: "#334155" }),
-    /* @__PURE__ */ b.jsx("rect", { x: "356", y: "96", width: "40", height: "70", rx: "6", fill: "#1e293b" }),
-    /* @__PURE__ */ b.jsx("rect", { x: "60", y: "214", width: "392", height: "262", rx: "22", fill: "#334155" }),
-    /* @__PURE__ */ b.jsx("rect", { x: "88", y: "240", width: "164", height: "104", rx: "8", fill: "url(#dh-mark-glow)" }),
-    /* @__PURE__ */ b.jsx("circle", { cx: "170", cy: "258", r: "9", fill: "#fff" }),
-    /* @__PURE__ */ b.jsx("rect", { x: "260", y: "240", width: "164", height: "104", rx: "8", fill: "#e2e8f0" }),
-    /* @__PURE__ */ b.jsx("rect", { x: "300", y: "290", width: "92", height: "40", rx: "8", fill: "#cbd5e1" }),
-    /* @__PURE__ */ b.jsx("rect", { x: "88", y: "352", width: "164", height: "96", rx: "8", fill: "#e2e8f0" }),
-    /* @__PURE__ */ b.jsx("rect", { x: "112", y: "398", width: "116", height: "32", rx: "10", fill: "#94a3b8" }),
-    /* @__PURE__ */ b.jsx("rect", { x: "112", y: "388", width: "116", height: "16", rx: "8", fill: "#64748b" }),
-    /* @__PURE__ */ b.jsx("rect", { x: "260", y: "352", width: "164", height: "96", rx: "8", fill: "#e2e8f0" }),
-    /* @__PURE__ */ b.jsx("rect", { x: "352", y: "366", width: "52", height: "40", rx: "6", fill: "#7dd3fc" })
+  return /* @__PURE__ */ b.jsxs("svg", { viewBox: "0 0 512 512", width: s, height: s, "aria-hidden": "true", style: { display: "block", borderRadius: s * 0.22 }, children: [
+    /* @__PURE__ */ b.jsxs("defs", { children: [
+      /* @__PURE__ */ b.jsxs("linearGradient", { id: "dh-mark-tile", x1: "0", y1: "0", x2: "1", y2: "1", children: [
+        /* @__PURE__ */ b.jsx("stop", { offset: "0", stopColor: "#1e40af" }),
+        /* @__PURE__ */ b.jsx("stop", { offset: "1", stopColor: "#0b1220" })
+      ] }),
+      /* @__PURE__ */ b.jsxs("radialGradient", { id: "dh-mark-glow", cx: "50%", cy: "50%", r: "60%", children: [
+        /* @__PURE__ */ b.jsx("stop", { offset: "0", stopColor: "#fff6cc" }),
+        /* @__PURE__ */ b.jsx("stop", { offset: "0.45", stopColor: "#fbbf24" }),
+        /* @__PURE__ */ b.jsx("stop", { offset: "1", stopColor: "#f59e0b" })
+      ] })
+    ] }),
+    /* @__PURE__ */ b.jsx("rect", { width: "512", height: "512", rx: "112", fill: "url(#dh-mark-tile)" }),
+    /* @__PURE__ */ b.jsx("polygon", { points: "256,432 80,330 256,228 432,330", fill: "#334155" }),
+    /* @__PURE__ */ b.jsx("polygon", { points: "80,330 256,432 256,458 80,356", fill: "#1e293b" }),
+    /* @__PURE__ */ b.jsx("polygon", { points: "432,330 256,432 256,458 432,356", fill: "#111827" }),
+    /* @__PURE__ */ b.jsx("polygon", { points: "80,330 80,170 256,68 256,228", fill: "#a3b0c2" }),
+    /* @__PURE__ */ b.jsx("polygon", { points: "432,330 432,170 256,68 256,228", fill: "#dbe3ee" }),
+    /* @__PURE__ */ b.jsx("polygon", { points: "80,170 256,68 432,170 432,182 256,80 80,182", fill: "#f8fafc" }),
+    /* @__PURE__ */ b.jsx("polygon", { points: "256,228 256,68 268,75 268,235", fill: "#64748b" }),
+    /* @__PURE__ */ b.jsx("polygon", { points: "80,330 168,381 256,330 168,279", fill: "url(#dh-mark-glow)" }),
+    /* @__PURE__ */ b.jsx("polygon", { points: "80,330 80,210 168,159 168,279", fill: "#fbbf24", opacity: "0.42" }),
+    /* @__PURE__ */ b.jsx("polygon", { points: "332,150 332,102 380,74 380,122", fill: "#7dd3fc", stroke: "#f8fafc", strokeWidth: "8", strokeLinejoin: "round" }),
+    /* @__PURE__ */ b.jsx("polygon", { points: "300,336 300,306 372,264 372,294", fill: "#e2e8f0" }),
+    /* @__PURE__ */ b.jsx("polygon", { points: "300,306 300,292 372,250 372,264", fill: "#94a3b8" })
   ] });
 }
 const f_ = "dollhouse-styles", l1 = `

@@ -1,41 +1,56 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <radialGradient id="glow" cx="50%" cy="20%" r="80%">
-      <stop offset="0" stop-color="#fff7d6"/>
-      <stop offset="0.45" stop-color="#fcd34d"/>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e40af"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="60%">
+      <stop offset="0" stop-color="#fff6cc"/>
+      <stop offset="0.45" stop-color="#fbbf24"/>
       <stop offset="1" stop-color="#f59e0b"/>
     </radialGradient>
-    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#475569"/>
-      <stop offset="1" stop-color="#1e293b"/>
+    <linearGradient id="wallL" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#94a3b8"/>
+      <stop offset="1" stop-color="#b8c4d4"/>
     </linearGradient>
   </defs>
 
-  <!-- roof -->
-  <path d="M256 44 L484 226 H28 Z" fill="url(#roof)"/>
-  <!-- chimney -->
-  <rect x="356" y="96" width="40" height="70" rx="6" fill="#1e293b"/>
+  <!-- tile -->
+  <rect width="512" height="512" rx="112" fill="url(#tile)"/>
 
-  <!-- body / outer walls -->
-  <rect x="60" y="214" width="392" height="262" rx="22" fill="#334155"/>
+  <!-- ground shadow -->
+  <polygon points="256,462 64,352 256,242 448,352" fill="#000" opacity="0.28"/>
 
-  <!-- interior: four rooms in a cut-away front -->
-  <!-- top-left: lit room -->
-  <rect x="88" y="240" width="164" height="104" rx="8" fill="url(#glow)"/>
-  <circle cx="170" cy="258" r="9" fill="#ffffff"/>
-  <!-- top-right: bedroom -->
-  <rect x="260" y="240" width="164" height="104" rx="8" fill="#e2e8f0"/>
-  <rect x="300" y="290" width="92" height="40" rx="8" fill="#cbd5e1"/>
-  <rect x="308" y="296" width="24" height="14" rx="4" fill="#ffffff"/>
-  <!-- bottom-left: living -->
-  <rect x="88" y="352" width="164" height="96" rx="8" fill="#e2e8f0"/>
-  <rect x="112" y="398" width="116" height="32" rx="10" fill="#94a3b8"/>
-  <rect x="112" y="388" width="116" height="16" rx="8" fill="#64748b"/>
-  <!-- bottom-right: kitchen with window -->
-  <rect x="260" y="352" width="164" height="96" rx="8" fill="#e2e8f0"/>
-  <rect x="352" y="366" width="52" height="40" rx="6" fill="#7dd3fc"/>
-  <rect x="284" y="412" width="72" height="20" rx="4" fill="#94a3b8"/>
+  <!-- floor slab: top + two visible sides -->
+  <polygon points="256,432 80,330 256,228 432,330" fill="#334155"/>
+  <polygon points="80,330 256,432 256,458 80,356" fill="#1e293b"/>
+  <polygon points="432,330 256,432 256,458 432,356" fill="#111827"/>
 
-  <!-- door on the base -->
-  <rect x="236" y="404" width="40" height="44" rx="6" fill="#0f172a" opacity="0.0"/>
+  <!-- back-left wall -->
+  <polygon points="80,330 80,170 256,68 256,228" fill="url(#wallL)"/>
+  <!-- back-right wall -->
+  <polygon points="432,330 432,170 256,68 256,228" fill="#dbe3ee"/>
+  <!-- wall top edges (cut-away rim) -->
+  <polygon points="80,170 256,68 432,170 432,182 256,80 80,182" fill="#f8fafc"/>
+  <!-- partition wall between the two rooms (front edge shows thickness) -->
+  <polygon points="256,228 256,68 268,75 268,235" fill="#64748b"/>
+  <polygon points="80,330 256,228 268,235 92,337" fill="#475569"/>
+
+  <!-- lit room: floor glow (left room) -->
+  <polygon points="80,330 168,381 256,330 168,279" fill="url(#glow)"/>
+  <!-- lit room: warm wash on its back wall -->
+  <polygon points="80,330 80,210 168,159 168,279" fill="#fbbf24" opacity="0.42"/>
+  <!-- pendant lamp -->
+  <line x1="168" y1="120" x2="168" y2="196" stroke="#f8fafc" stroke-width="6"/>
+  <polygon points="140,196 196,196 184,214 152,214" fill="#f8fafc"/>
+  <circle cx="168" cy="224" r="12" fill="#fff7d6"/>
+
+  <!-- window on the right wall -->
+  <polygon points="332,150 332,102 380,74 380,122" fill="#7dd3fc"/>
+  <polygon points="332,150 332,102 380,74 380,122" fill="none" stroke="#f8fafc" stroke-width="8" stroke-linejoin="round"/>
+
+  <!-- sofa in the right room -->
+  <polygon points="300,336 300,306 372,264 372,294" fill="#e2e8f0"/>
+  <polygon points="300,306 300,292 372,250 372,264" fill="#94a3b8"/>
+  <polygon points="372,294 372,264 384,270 384,300" fill="#cbd5e1"/>
 </svg>

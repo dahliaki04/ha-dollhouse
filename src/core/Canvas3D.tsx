@@ -220,6 +220,31 @@ function poolTexture(): THREE.Texture {
   return poolTex;
 }
 
+let washTex: THREE.Texture | null = null;
+/** Vertical falloff (bright at the fixture, fading upward) with feathered ends, for cove/wall washes. */
+function washTexture(): THREE.Texture {
+  if (washTex) return washTex;
+  const c = document.createElement("canvas");
+  c.width = 256; c.height = 128;
+  const ctx = c.getContext("2d")!;
+  const img = ctx.createImageData(256, 128);
+  for (let y = 0; y < 128; y++) {
+    const v = 1 - y / 127; // row 0 = top (far from strip)
+    const fall = Math.pow(1 - v, 1.6); // strong near the bottom
+    for (let x = 0; x < 256; x++) {
+      const u = (x / 255) * 2 - 1;
+      const feather = Math.pow(Math.max(0, 1 - u * u), 0.9);
+      const a = Math.round(255 * fall * feather);
+      const i = (y * 256 + x) * 4;
+      img.data[i] = 255; img.data[i + 1] = 255; img.data[i + 2] = 255; img.data[i + 3] = a;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  washTex = new THREE.CanvasTexture(c);
+  washTex.colorSpace = THREE.SRGBColorSpace;
+  return washTex;
+}
+
 function layoutSizeM(layout: Layout, hass?: HassLike) {
   const mpu = layout.metresPerUnit;
   const pts: Point[] = layout.rooms.flatMap((r) => r.points);
@@ -386,7 +411,8 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       // Ceiling fixtures hang just below the slab; pendants drop 0.8 m.
       const y = fixture === "pendant" && yMount >= ceilingH - 0.05 ? ceilingH - 0.8 : Math.min(yMount, ceilingH - 0.03);
       const bright = brightness01(hass, item.entityId);
-      const mat = new THREE.MeshStandardMaterial({ color: on ? color : 0xd1d5db, emissive: on ? color : 0x000000, emissiveIntensity: on ? 0.8 + bright : 0 });
+      const bodyColor = on ? (fixture === "strip" ? color.clone().lerp(new THREE.Color(0xffffff), 0.6) : color) : new THREE.Color(0xd1d5db);
+      const mat = new THREE.MeshStandardMaterial({ color: bodyColor, emissive: on ? color : 0x000000, emissiveIntensity: on ? (fixture === "strip" ? 0.35 + 0.3 * bright : 0.8 + bright) : 0 });
       let geo: THREE.BufferGeometry;
       const L = item.length ?? 1;
       if (fixture === "strip") geo = new THREE.BoxGeometry(L, 0.04, 0.06);
@@ -438,9 +464,9 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
         if (beam === "up" || beam === "both") {
           if (wallSide) {
             // No ceiling in a dollhouse, so an up-throw reads as a glow on the wall above the fixture.
-            const gh = Math.max(0.2, ceilingH - y);
-            const wash = new THREE.Mesh(new THREE.PlaneGeometry(poolW, gh), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22 + 0.25 * bright, depthWrite: false, side: THREE.DoubleSide }));
-            wash.position.set(lx + inN[0] * 0.01, y + gh / 2, lz + inN[1] * 0.01);
+            const gh = Math.max(0.3, ceilingH - y + 0.1);
+            const wash = new THREE.Mesh(new THREE.PlaneGeometry(poolW + 0.8, gh), new THREE.MeshBasicMaterial({ map: washTexture(), color, transparent: true, opacity: 0.45 + 0.35 * bright, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+            wash.position.set(lx + inN[0] * 0.015, y - 0.1 + gh / 2, lz + inN[1] * 0.015);
             wash.rotation.y = rotZ;
             scene.add(wash);
           } else addPool(ceilingH - 0.02, true);

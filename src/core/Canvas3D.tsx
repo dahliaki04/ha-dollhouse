@@ -292,7 +292,11 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
         };
         if (beam === "down" || beam === "both") addPool(0.02, false);
         if (beam === "up" || beam === "both") addPool(ceilingH - 0.02, true);
-        const pl = new THREE.PointLight(color, 5 + 14 * bright, 5, 1.6);
+        const pl = new THREE.PointLight(color, 5 + 14 * bright, 4.5, 1.6);
+        // Shadows stop light leaking through walls onto the outside ground; scene renders on demand so the cost is fine.
+        pl.castShadow = true;
+        pl.shadow.mapSize.set(512, 512);
+        pl.shadow.bias = -0.002;
         const ly = beam === "up" ? Math.min(ceilingH - 0.15, y + 0.15) : Math.max(0.2, y - 0.1);
         pl.position.set(wallSide ? lx + inN[0] * 0.2 : x, ly, wallSide ? lz + inN[1] * 0.2 : z);
         scene.add(pl);

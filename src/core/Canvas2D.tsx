@@ -208,6 +208,7 @@ export function Canvas2D(p: Canvas2DProps) {
     }
     if (e.button !== 0) return;
     const pt = toCanvas(e);
+    if (layout.locked && (tool === "magic" || tool === "rect" || tool === "polygon")) { flash(t("平面圖已鎖定，先解鎖才能改房間")); return; }
     if (tool === "magic") {
       magicAt(pt);
     } else if (tool === "rect") {
@@ -389,6 +390,7 @@ export function Canvas2D(p: Canvas2DProps) {
 
   const startRoomDrag = (e: React.PointerEvent, room: Room) => {
     if (tool !== "select" || e.button !== 0 || p.readOnly) return;
+    if (layout.locked) { e.stopPropagation(); p.onSelect({ kind: "room", id: room.id }); return; }
     e.stopPropagation();
     svgRef.current!.setPointerCapture(e.pointerId);
     p.onSelect({ kind: "room", id: room.id });
@@ -396,7 +398,7 @@ export function Canvas2D(p: Canvas2DProps) {
   };
 
   const startVertexDrag = (e: React.PointerEvent, room: Room, index: number) => {
-    if (tool !== "select" || e.button !== 0 || p.readOnly) return;
+    if (tool !== "select" || e.button !== 0 || p.readOnly || layout.locked) return;
     e.stopPropagation();
     svgRef.current!.setPointerCapture(e.pointerId);
     setDrag({ kind: "vertex", id: room.id, index });
@@ -501,7 +503,7 @@ export function Canvas2D(p: Canvas2DProps) {
         ))}
 
         {/* vertex handles for selected room */}
-        {selRoom && tool === "select" && selRoom.points.map((q, i) => (
+        {selRoom && tool === "select" && !layout.locked && selRoom.points.map((q, i) => (
           <circle key={i} cx={q[0]} cy={q[1]} r={0.12 * m} fill="#fff" stroke="#2563eb" strokeWidth={0.03 * m} style={{ cursor: "grab" }} onPointerDown={(e) => startVertexDrag(e, selRoom, i)} />
         ))}
 

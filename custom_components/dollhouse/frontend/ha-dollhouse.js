@@ -11953,6 +11953,10 @@ function Yx(a) {
     }
     if (K.button !== 0) return;
     const gt = D(K);
+    if (t.locked && (l === "magic" || l === "rect" || l === "polygon")) {
+      H(B("平面圖已鎖定，先解鎖才能改房間"));
+      return;
+    }
     if (l === "magic")
       Z(gt);
     else if (l === "rect") {
@@ -12064,9 +12068,15 @@ function Yx(a) {
   }, Rt = (K, xt) => {
     l !== "select" || K.button !== 0 || a.readOnly || (K.stopPropagation(), u.current.setPointerCapture(K.pointerId), a.onSelect({ kind: "furniture", id: xt.id }), g({ kind: "furn", id: xt.id, start: D(K), orig: [xt.x, xt.y], moved: !1 }));
   }, wt = (K, xt) => {
-    l !== "select" || K.button !== 0 || a.readOnly || (K.stopPropagation(), u.current.setPointerCapture(K.pointerId), a.onSelect({ kind: "room", id: xt.id }), g({ kind: "room", id: xt.id, last: il(D(K), rt), moved: !1 }));
+    if (!(l !== "select" || K.button !== 0 || a.readOnly)) {
+      if (t.locked) {
+        K.stopPropagation(), a.onSelect({ kind: "room", id: xt.id });
+        return;
+      }
+      K.stopPropagation(), u.current.setPointerCapture(K.pointerId), a.onSelect({ kind: "room", id: xt.id }), g({ kind: "room", id: xt.id, last: il(D(K), rt), moved: !1 });
+    }
   }, jt = (K, xt, gt) => {
-    l !== "select" || K.button !== 0 || a.readOnly || (K.stopPropagation(), u.current.setPointerCapture(K.pointerId), g({ kind: "vertex", id: xt.id, index: gt }));
+    l !== "select" || K.button !== 0 || a.readOnly || t.locked || (K.stopPropagation(), u.current.setPointerCapture(K.pointerId), g({ kind: "vertex", id: xt.id, index: gt }));
   }, Xt = (K, xt) => {
     if (l !== "select" || K.button !== 0 || a.readOnly) return;
     K.stopPropagation();
@@ -12137,7 +12147,7 @@ function Yx(a) {
             ] }, K.id);
           }),
           (t.furniture ?? []).map((K) => /* @__PURE__ */ S.jsx(Fb, { f: K, m: W, selected: (o == null ? void 0 : o.kind) === "furniture" && o.id === K.id, onPointerDown: Rt }, K.id)),
-          de && l === "select" && de.points.map((K, xt) => /* @__PURE__ */ S.jsx("circle", { cx: K[0], cy: K[1], r: 0.12 * W, fill: "#fff", stroke: "#2563eb", strokeWidth: 0.03 * W, style: { cursor: "grab" }, onPointerDown: (gt) => jt(gt, de, xt) }, xt)),
+          de && l === "select" && !t.locked && de.points.map((K, xt) => /* @__PURE__ */ S.jsx("circle", { cx: K[0], cy: K[1], r: 0.12 * W, fill: "#fff", stroke: "#2563eb", strokeWidth: 0.03 * W, style: { cursor: "grab" }, onPointerDown: (gt) => jt(gt, de, xt) }, xt)),
           t.items.map((K) => /* @__PURE__ */ S.jsx(Ub, { item: K, layout: t, hass: n, selected: (o == null ? void 0 : o.kind) === "item" && o.id === K.id, onPointerDown: ft }, K.id)),
           (f == null ? void 0 : f.kind) === "rect" && /* @__PURE__ */ S.jsx("rect", { x: Math.min(f.start[0], f.cur[0]), y: Math.min(f.start[1], f.cur[1]), width: Math.abs(f.cur[0] - f.start[0]), height: Math.abs(f.cur[1] - f.start[1]), fill: "#2563eb", fillOpacity: 0.12, stroke: "#2563eb", strokeWidth: 0.03 * W, strokeDasharray: `${0.1 * W} ${0.06 * W}` }),
           (f == null ? void 0 : f.kind) === "rect" && /* @__PURE__ */ S.jsx(f_, { a: f.start, b: f.cur, m: W }),

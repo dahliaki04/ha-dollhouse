@@ -87,7 +87,9 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
       <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
         <button className="dh-btn" onClick={() => setDir((d) => (d + 3) % 4)}>⟲ 轉</button>
         <button className="dh-btn" onClick={() => setDir((d) => (d + 1) % 4)}>轉 ⟳</button>
-        <button className="dh-btn" onClick={() => setZoom(1)}>重置縮放</button>
+        <button className="dh-btn" onClick={() => setZoom((z) => Math.min(4, z * 1.25))}>＋</button>
+        <button className="dh-btn" onClick={() => setZoom((z) => Math.max(0.4, z / 1.25))}>－</button>
+        <button className="dh-btn" onClick={() => setZoom(1)}>重置</button>
       </div>
       <div className="dh-hint">娃娃屋視圖：四個方向切換，滾輪縮放。狀態即時更新。</div>
     </div>

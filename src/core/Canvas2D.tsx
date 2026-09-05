@@ -29,22 +29,36 @@ type Drag =
   | { kind: "room"; id: string; last: Point; moved: boolean }
   | { kind: "vertex"; id: string; index: number }
   | { kind: "rect"; start: Point; cur: Point }
-  | { kind: "pan"; start: Point; orig: ViewBox };
+  | { kind: "pan"; start: Point; orig: ViewBox }
+  | { kind: "pinch"; d0: number; vb0: ViewBox; c0: Point };
 
 export function Canvas2D(p: Canvas2DProps) {
   const { layout, hass, walls, selection, tool } = p;
   const svgRef = useRef<SVGSVGElement>(null);
-  const [vb, setVb] = useState<ViewBox>(() => fitView(layout));
+  const [vb, setVb] = useState<ViewBox>(() => fitView(layout, 1.5));
   const [drag, setDrag] = useState<Drag | null>(null);
   const [poly, setPoly] = useState<Point[]>([]);
   const [hover, setHover] = useState<Point | null>(null);
   const [scalePts, setScalePts] = useState<Point[]>([]);
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
 
-  // Refit when canvas size changes (new background).
+  // Fit to the container's aspect ratio (so pointer→canvas mapping is exact) on mount,
+  // on resize, and when the canvas size changes (new background).
   const sizeKey = `${layout.canvas.width}x${layout.canvas.height}`;
-  useEffect(() => setVb(fitView(layoutRef.current)), [sizeKey]);
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const fit = () => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) setVb(fitView(layoutRef.current, r.width / r.height));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [sizeKey]);
   useEffect(() => {
     if (tool !== "polygon") setPoly([]);
     if (tool !== "scale") setScalePts([]);
@@ -86,7 +100,27 @@ export function Canvas2D(p: Canvas2DProps) {
 
   /* ---------- pointer handling ---------- */
 
+  // Runs before children: tracks fingers so a second finger turns any gesture into a pinch.
+  const onPointerDownCapture = (e: React.PointerEvent) => {
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      const mid = { clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 };
+      setDrag({ kind: "pinch", d0: Math.hypot(a.x - b.x, a.y - b.y), vb0: vb, c0: toCanvas(mid) });
+      svgRef.current!.setPointerCapture(e.pointerId);
+      e.stopPropagation();
+    }
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
+    if (pointers.current.size >= 2) return;
+    const onBackground = (e.target as Element) === svgRef.current || (e.target as Element).classList.contains("dh-bg");
+    if (tool === "select" && e.pointerType === "touch" && onBackground) {
+      p.onSelect(null);
+      setDrag({ kind: "pan", start: [e.clientX, e.clientY], orig: vb });
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      return;
+    }
     if (e.button === 1 || (e.button === 0 && e.altKey) || (tool === "select" && e.button === 0 && (e.target as Element) === svgRef.current && e.shiftKey === false && spaceDown.current)) {
       setDrag({ kind: "pan", start: [e.clientX, e.clientY], orig: vb });
       (e.currentTarget as Element).setPointerCapture(e.pointerId);
@@ -114,9 +148,22 @@ export function Canvas2D(p: Canvas2DProps) {
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
+    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const pt = toCanvas(e);
     setHover(pt);
     if (!drag) return;
+    if (drag.kind === "pinch") {
+      if (pointers.current.size < 2) return;
+      const [a, b] = [...pointers.current.values()];
+      const r = svgRef.current!.getBoundingClientRect();
+      const k = drag.d0 / Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+      const w = drag.vb0.w * k;
+      const h = drag.vb0.h * k;
+      const mx = (a.x + b.x) / 2;
+      const my = (a.y + b.y) / 2;
+      setVb({ x: drag.c0[0] - (mx - r.left) * (w / r.width), y: drag.c0[1] - (my - r.top) * (h / r.height), w, h });
+      return;
+    }
     if (drag.kind === "pan") {
       const svg = svgRef.current!;
       const k = vb.w / svg.getBoundingClientRect().width;
@@ -147,7 +194,12 @@ export function Canvas2D(p: Canvas2DProps) {
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId);
     if (!drag) return;
+    if (drag.kind === "pinch") {
+      if (pointers.current.size === 0) setDrag(null);
+      return;
+    }
     if (drag.kind === "rect") {
       const [x0, y0] = drag.start;
       const [x1, y1] = drag.cur;
@@ -245,11 +297,13 @@ export function Canvas2D(p: Canvas2DProps) {
       <svg
         ref={svgRef}
         viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
+        preserveAspectRatio="none"
         style={{ cursor }}
+        onPointerDownCapture={onPointerDownCapture}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => setDrag(null)}
+        onPointerCancel={(e) => { pointers.current.delete(e.pointerId); setDrag(null); }}
         onWheel={onWheel}
         onContextMenu={(e) => e.preventDefault()}
       >
@@ -355,11 +409,14 @@ function hint(tool: Tool, polyN: number, scaleN: number): string {
   return "拖曳裝置或房間；點牆可選取（Shift 多選）；滾輪縮放，Alt+拖曳平移";
 }
 
-function fitView(layout: Layout): ViewBox {
+/** ViewBox that shows the whole canvas and has exactly the container's aspect ratio. */
+function fitView(layout: Layout, aspect: number): ViewBox {
   const pad = 0.04;
-  const w = layout.canvas.width * (1 + pad * 2);
-  const h = layout.canvas.height * (1 + pad * 2);
-  return { x: -layout.canvas.width * pad, y: -layout.canvas.height * pad, w, h };
+  const cw = layout.canvas.width * (1 + pad * 2);
+  const ch = layout.canvas.height * (1 + pad * 2);
+  const w = cw / ch > aspect ? cw : ch * aspect;
+  const h = cw / ch > aspect ? cw / aspect : ch;
+  return { x: layout.canvas.width / 2 - w / 2, y: layout.canvas.height / 2 - h / 2, w, h };
 }
 
 function snapToGridPt(pt: Point, step: number): Point {

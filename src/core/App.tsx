@@ -131,16 +131,16 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
     <div className="dh-app">
       <div className="dh-toolbar">
         <span className="dh-title">🏠 Dollhouse</span>
-        <input className="dh-btn" style={{ width: 140 }} value={state.layout.name} onChange={(e) => commit({ ...state.layout, name: e.target.value })} />
+        <input className="dh-btn dh-name" style={{ width: 140 }} value={state.layout.name} onChange={(e) => commit({ ...state.layout, name: e.target.value })} />
         {toolBtn("select", "選取", "V")}
         {toolBtn("rect", "矩形房間", "R")}
         {toolBtn("polygon", "多邊形房間", "P")}
         <button className="dh-btn" disabled={!state.past.length} onClick={() => dispatch({ type: "undo" })}>↶</button>
         <button className="dh-btn" disabled={!state.future.length} onClick={() => dispatch({ type: "redo" })}>↷</button>
-        <span className="dh-spacer" />
-        <span className="dh-muted">{saveState === "saving" ? "儲存中…" : saveState === "error" ? "儲存失敗" : state.dirty ? "未儲存" : loaded ? "已儲存" : ""}</span>
         <button className={`dh-btn${state.view === "2d" ? " on" : ""}`} onClick={() => dispatch({ type: "view", view: "2d" })}>2D</button>
         <button className={`dh-btn${state.view === "3d" ? " on" : ""}`} disabled={!render3D} onClick={() => dispatch({ type: "view", view: "3d" })}>3D</button>
+        <span className="dh-spacer" />
+        <span className="dh-muted dh-save">{saveState === "saving" ? "儲存中…" : saveState === "error" ? "儲存失敗" : state.dirty ? "未儲存" : loaded ? "已儲存" : ""}</span>
       </div>
       <div className="dh-body">
         {state.view === "2d" || !render3D ? (

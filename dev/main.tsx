@@ -24,10 +24,8 @@ function Root() {
 async function boot() {
   // ?demo seeds the store with a ready-made apartment (use ?demo=reset to overwrite).
   const q = new URLSearchParams(location.search);
-  if (q.has("demo")) {
-    const seed = createMockHass(() => {});
-    if (q.get("demo") === "reset" || !(await store.load())) await store.save(demoLayout(seed));
-  }
+  const seed = createMockHass(() => {});
+  if (q.get("demo") === "reset" || !(await store.load())) await store.save(demoLayout(seed));
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
       <Root />

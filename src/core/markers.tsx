@@ -2,6 +2,7 @@ import type { Item, Layout } from "../domain/types";
 import { resolveKind } from "../domain/entities";
 import { coverInward, coverView, curtainPanels, wallInward } from "../domain/covers";
 import { effectiveBeam, hugsWall } from "../domain/entities";
+import { DomainGlyph, ModeGlyph } from "./glyphs";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 
 export interface MarkerProps {
@@ -65,7 +66,6 @@ export function brightness01(hass: HassLike, entityId: string): number {
 }
 
 const HVAC_COLOR: Record<string, string> = { cool: "#3b82f6", heat: "#f97316", dry: "#eab308", fan_only: "#14b8a6", heat_cool: "#a855f7", auto: "#a855f7", off: "#9ca3af" };
-const HVAC_GLYPH: Record<string, string> = { cool: "❄", heat: "☀", dry: "💧", fan_only: "✦", heat_cool: "⇅", auto: "A", off: "○" };
 
 export function Marker(props: MarkerProps) {
   const { item, layout, hass } = props;
@@ -159,7 +159,7 @@ function ClimateChip({ item, hass, m }: { item: Item; hass: HassLike; m: number 
   return (
     <>
       <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={0.12 * m} fill="#fff" stroke={color} strokeWidth={0.04 * m} />
-      <text x={-w / 2 + 0.12 * m} y={0.08 * m} fontSize={fs * 1.2} fill={color}>{HVAC_GLYPH[mode] ?? "○"}</text>
+      <g transform={`translate(${-w / 2 + 0.25 * m} 0)`}><ModeGlyph mode={mode} s={0.3 * m} color={color} /></g>
       <text x={-w / 2 + 0.42 * m} y={-0.02 * m} fontSize={fs} fill="#111" fontWeight={600}>{cur !== undefined ? `${cur.toFixed(1)}°` : "--"}</text>
       <text x={-w / 2 + 0.42 * m} y={0.22 * m} fontSize={fs * 0.75} fill="#6b7280">{target !== undefined && mode !== "off" ? `→${target}°` : mode === "off" ? "關" : ""}</text>
       {[0, 1, 2].map((i) => (
@@ -243,7 +243,6 @@ function wave(x0: number, w: number, t: number, m: number): string {
   return d + " Z";
 }
 
-const DOMAIN_GLYPH: Record<string, string> = { switch: "⏻", fan: "✢", cover: "▤", media_player: "♪", sensor: "◎", binary_sensor: "◉", lock: "🔒", vacuum: "⌂", humidifier: "≈" };
 
 function GenericChip({ item, hass, m }: { item: Item; hass: HassLike; m: number }) {
   const s = hass.states[item.entityId];
@@ -258,7 +257,7 @@ function GenericChip({ item, hass, m }: { item: Item; hass: HassLike; m: number 
   return (
     <>
       <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={h / 2} fill={active ? "#dbeafe" : "#fff"} stroke={active ? "#2563eb" : "#9ca3af"} strokeWidth={0.025 * m} />
-      <text x={-w / 2 + 0.14 * m} y={0.07 * m} fontSize={0.2 * m} fill="#374151">{DOMAIN_GLYPH[dom] ?? "•"}</text>
+      <g transform={`translate(${-w / 2 + 0.22 * m} 0)`}><DomainGlyph dom={dom} s={0.22 * m} color={active ? "#1d4ed8" : "#374151"} /></g>
       <text x={0.1 * m} y={0.07 * m} fontSize={0.19 * m} textAnchor="middle" fill="#111">{text}</text>
       <text y={h / 2 + 0.2 * m} fontSize={0.15 * m} textAnchor="middle" fill="#6b7280">{label}</text>
     </>

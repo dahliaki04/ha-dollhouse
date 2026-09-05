@@ -5,7 +5,7 @@ import { newId } from "../domain/types";
 import { deriveWalls, pruneOverrides, pruneVirtual, setThickness, setVirtual } from "../domain/walls";
 
 export type Selection = { kind: "room"; id: string } | { kind: "item"; id: string } | { kind: "furniture"; id: string } | { kind: "walls"; ids: string[] } | null;
-export type Tool = "select" | "rect" | "polygon" | "scale";
+export type Tool = "select" | "rect" | "polygon" | "magic" | "scale";
 export type View = "2d" | "3d";
 
 export interface EditorState {

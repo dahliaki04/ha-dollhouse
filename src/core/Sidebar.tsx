@@ -21,6 +21,8 @@ export interface SidebarProps {
   onExport: () => void;
   onImport: (file: File) => void;
   onStartScale: () => void;
+  placing?: boolean;
+  onPlacing?: (v: boolean) => void;
 }
 
 const FIXTURES: { v: FixtureType; label: string }[] = [
@@ -473,7 +475,10 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
           </div>
         );
       })()}
-      <div className="dh-muted">位置 ({(item.x * layout.metresPerUnit).toFixed(2)}, {(item.y * layout.metresPerUnit).toFixed(2)}) m</div>
+      <div className="dh-row" style={{ marginTop: 6 }}>
+        <button className={`dh-btn small${p.placing ? " on" : ""}`} onClick={() => p.onPlacing?.(!p.placing)}>{p.placing ? "點畫布放置…" : "移到點的位置"}</button>
+        <span className="dh-muted">位置 ({(item.x * layout.metresPerUnit).toFixed(2)}, {(item.y * layout.metresPerUnit).toFixed(2)}) m</span>
+      </div>
       <div className="dh-row" style={{ marginTop: 10 }}>
         <button className="dh-btn danger" onClick={() => { p.onCommit(removeItem(layout, item.id)); p.onSelect(null); }}>移除</button>
       </div>
@@ -516,7 +521,10 @@ function FurniturePanel(p: SidebarProps & { f: Furniture }) {
         <label>標籤（選填）</label>
         <input value={f.label ?? ""} placeholder={spec.label} onChange={(e) => set({ label: e.target.value || null })} />
       </div>
-      <div className="dh-muted">拖曳移動；Shift 拖曳不吸附格點。</div>
+      <div className="dh-row">
+        <button className={`dh-btn small${p.placing ? " on" : ""}`} onClick={() => p.onPlacing?.(!p.placing)}>{p.placing ? "點畫布放置…" : "移到點的位置"}</button>
+        <span className="dh-muted">或直接拖曳；Shift 拖曳不吸附格點。</span>
+      </div>
       <div className="dh-row" style={{ marginTop: 10 }}>
         <button className="dh-btn" onClick={() => { const c = makeFurniture(f.type, f.x + 0.3 / layout.metresPerUnit, f.y + 0.3 / layout.metresPerUnit); p.onCommit(addFurniture(layout, { ...c, w: f.w, d: f.d, h: f.h, color: f.color, rotation: f.rotation })); p.onSelect({ kind: "furniture", id: c.id }); }}>複製</button>
         <button className="dh-btn danger" onClick={() => { p.onCommit(removeFurniture(layout, f.id)); p.onSelect(null); }}>刪除</button>

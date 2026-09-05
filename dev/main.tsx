@@ -4,6 +4,9 @@ import { App } from "../src/core/App";
 import { createLocalStore, createMockHass } from "../src/ha/mock";
 import { demoLayout } from "../src/ha/demo";
 import { render3D } from "../src/core/lazy3d";
+import { importBackground } from "../src/core/background";
+import { setBackground } from "../src/core/useEditor";
+import { emptyLayout } from "../src/domain/types";
 import type { HassLike } from "../src/ha/types";
 
 const store = createLocalStore();
@@ -25,7 +28,22 @@ async function boot() {
   // ?demo seeds the store with a ready-made apartment (use ?demo=reset to overwrite).
   const q = new URLSearchParams(location.search);
   const seed = createMockHass(() => {});
-  if (q.get("demo") === "reset" || !(await store.load())) await store.save(demoLayout(seed));
+  if (q.has("plan")) {
+    // Blank layout with a synthetic scanned plan as background (for the click-to-detect tool).
+    const blob = await (await fetch("./plan.png")).blob();
+    const bg = await importBackground(new File([blob], "plan.png", { type: "image/png" }));
+    await store.save(setBackground(emptyLayout("底圖測試"), bg));
+  } else if (q.get("demo") === "reset" || !(await store.load())) await store.save(demoLayout(seed));
+  const auto = q.get("autoroom");
+  if (auto) {
+    // e.g. ?plan&autoroom=300,200;900,200 — canvas coordinates, fired after the app mounts
+    setTimeout(() => {
+      auto.split(";").forEach((pair, i) => {
+        const [x, y] = pair.split(",").map(Number);
+        setTimeout(() => window.dispatchEvent(new CustomEvent("dollhouse:autoroom", { detail: { x, y } })), 400 * (i + 1));
+      });
+    }, 1500);
+  }
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
       <Root />

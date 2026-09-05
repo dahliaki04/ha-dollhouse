@@ -24,6 +24,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   const [state, dispatch] = useEditor(emptyLayout(), initialView ?? "2d");
   const [loaded, setLoaded] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [placing, setPlacing] = useState(false);
   const layoutRef = useRef(state.layout);
   layoutRef.current = state.layout;
 
@@ -64,7 +65,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
 
   const commit = useCallback((layout: Layout) => dispatch({ type: "commit", layout }), []);
   const preview = useCallback((layout: Layout) => dispatch({ type: "preview", layout }), []);
-  const select = useCallback((selection: typeof state.selection) => dispatch({ type: "select", selection }), []);
+  const select = useCallback((selection: typeof state.selection) => { dispatch({ type: "select", selection }); setPlacing(false); }, []);
   const setTool = (tool: Tool) => dispatch({ type: "tool", tool });
 
   const onRoomDrawn = (points: Point[]) => {
@@ -101,10 +102,11 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
         if (sel?.kind === "item") { commit(removeItem(state.layout, sel.id)); select(null); }
         if (sel?.kind === "room") { commit(removeRoom(state.layout, sel.id)); select(null); }
         if (sel?.kind === "furniture") { commit(removeFurniture(state.layout, sel.id)); select(null); }
-      } else if (e.key === "Escape") { select(null); setTool("select"); }
+      } else if (e.key === "Escape") { select(null); setTool("select"); setPlacing(false); }
       else if (e.key === "v") setTool("select");
       else if (e.key === "r") setTool("rect");
       else if (e.key === "p") setTool("polygon");
+      else if (e.key === "m" && state.layout.background) setTool("magic");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -140,6 +142,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
         {toolBtn("select", "選取", "V")}
         {toolBtn("rect", "矩形房間", "R")}
         {toolBtn("polygon", "多邊形房間", "P")}
+        <button className={`dh-btn${state.tool === "magic" ? " on" : ""}`} disabled={!state.layout.background} title={state.layout.background ? "點底圖上的房間內部，自動框出" : "先上傳底圖"} onClick={() => setTool("magic")}>點選房間</button>
         <button className="dh-btn" disabled={!state.past.length} onClick={() => dispatch({ type: "undo" })}>↶</button>
         <button className="dh-btn" disabled={!state.future.length} onClick={() => dispatch({ type: "redo" })}>↷</button>
         <button className={`dh-btn${state.view === "2d" ? " on" : ""}`} onClick={() => dispatch({ type: "view", view: "2d" })}>2D</button>
@@ -162,11 +165,13 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
             onScale={onScale}
             onTap={onTap}
             onDoubleTap={(item) => onMoreInfo?.(item.entityId)}
+            placing={placing}
+            onPlaced={() => setPlacing(false)}
           />
         ) : (
           <div className="dh-canvas-wrap">{render3D({ layout: state.layout, hass })}</div>
         )}
-        <Sidebar layout={state.layout} hass={hass} walls={walls} selection={state.selection} onCommit={commit} onSelect={select} onExport={onExport} onImport={onImport} onStartScale={() => setTool("scale")} />
+        <Sidebar layout={state.layout} hass={hass} walls={walls} selection={state.selection} onCommit={commit} onSelect={select} onExport={onExport} onImport={onImport} onStartScale={() => setTool("scale")} placing={placing} onPlacing={setPlacing} />
       </div>
     </div>
   );

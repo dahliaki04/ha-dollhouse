@@ -8,6 +8,7 @@ import type { Furniture } from "../domain/furniture";
 import { moveRoom, updateFurniture, updateItem, updateRoom, type Selection, type Tool } from "./useEditor";
 import type { HassLike } from "../ha/types";
 import { entitiesInArea, hugsWall } from "../domain/entities";
+import { backgroundFit, detectRoom, loadGray, type Gray } from "../domain/autoroom";
 
 export interface Canvas2DProps {
   layout: Layout;
@@ -22,6 +23,9 @@ export interface Canvas2DProps {
   onScale: (units: number) => void;
   onTap: (item: Item) => void;
   onDoubleTap: (item: Item) => void;
+  /** Tap-to-place: next tap on the canvas moves the selected item/furniture there. */
+  placing?: boolean;
+  onPlaced?: () => void;
 }
 
 interface ViewBox { x: number; y: number; w: number; h: number }
@@ -43,6 +47,9 @@ export function Canvas2D(p: Canvas2DProps) {
   const [poly, setPoly] = useState<Point[]>([]);
   const [hover, setHover] = useState<Point | null>(null);
   const [scalePts, setScalePts] = useState<Point[]>([]);
+  const [rectStart, setRectStart] = useState<Point | null>(null); // tap-tap rectangle
+  const [notice, setNotice] = useState<string | null>(null);
+  const gray = useRef<{ url: string; gray: Gray; k: number } | null>(null);
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -65,7 +72,55 @@ export function Canvas2D(p: Canvas2DProps) {
   useEffect(() => {
     if (tool !== "polygon") setPoly([]);
     if (tool !== "scale") setScalePts([]);
+    if (tool !== "rect") setRectStart(null);
   }, [tool]);
+
+  // Raster the background once per image for the click-to-detect tool.
+  const bgUrl = layout.background?.url;
+  useEffect(() => {
+    if (!bgUrl || gray.current?.url === bgUrl) return;
+    let alive = true;
+    loadGray(bgUrl).then((r) => { if (alive) gray.current = { url: bgUrl, ...r }; }).catch(() => setNotice("底圖讀取失敗"));
+    return () => { alive = false; };
+  }, [bgUrl]);
+
+  const flash = (msg: string) => { setNotice(msg); setTimeout(() => setNotice(null), 2500); };
+
+  // Android WebView (HA companion app) can still scroll the page on touch despite touch-action:none;
+  // React touch handlers are passive, so block scrolling with a native non-passive listener.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const block = (e: TouchEvent) => { if (e.cancelable) e.preventDefault(); };
+    el.addEventListener("touchstart", block, { passive: false });
+    el.addEventListener("touchmove", block, { passive: false });
+    return () => { el.removeEventListener("touchstart", block); el.removeEventListener("touchmove", block); };
+  }, []);
+
+  /** Click inside a room on the background → polygon in canvas units. */
+  const magicAt = (pt: Point) => {
+    const L = layoutRef.current;
+    const g = gray.current;
+    if (!L.background || !g || g.url !== L.background.url) { flash("底圖還在讀取，再點一次"); return; }
+    const fit = backgroundFit(L.canvas, L.background);
+    const ix = ((pt[0] - fit.offX) / fit.s) * g.k;
+    const iy = ((pt[1] - fit.offY) / fit.s) * g.k;
+    const r = detectRoom(g.gray, ix, iy);
+    if (!r) { flash("這裡沒有封閉的區域，改用矩形或多邊形"); return; }
+    const toCanvasPt = (p: Point): Point => [(p[0] / g.k) * fit.s + fit.offX, (p[1] / g.k) * fit.s + fit.offY];
+    // Snap to existing rooms' vertices (not the grid) so shared walls line up exactly.
+    const pts = r.points.map(toCanvasPt).map((q) => snap(q, undefined, false, 0.3));
+    p.onRoomDrawn(pts);
+  };
+
+  // Dev harness hook: window.dispatchEvent(new CustomEvent("dollhouse:autoroom", { detail: { x, y } }))
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const h = (e: Event) => { const d = (e as CustomEvent).detail; magicAt([d.x, d.y]); };
+    window.addEventListener("dollhouse:autoroom", h);
+    return () => window.removeEventListener("dollhouse:autoroom", h);
+  });
 
   const m = 1 / layout.metresPerUnit;
   const gridUnits = layout.grid > 0 ? layout.grid * m : 0;
@@ -81,9 +136,9 @@ export function Canvas2D(p: Canvas2DProps) {
   );
 
   const snap = useCallback(
-    (pt: Point, excludeRoom?: string): Point => {
+    (pt: Point, excludeRoom?: string, useGrid = true, tolM = 0.15): Point => {
       let [x, y] = pt;
-      const tol = 0.15 * m;
+      const tol = tolM * m;
       // Snap to other rooms' vertices (axis-wise) so shared edges become exactly collinear.
       let bx = tol;
       let by = tol;
@@ -94,8 +149,8 @@ export function Canvas2D(p: Canvas2DProps) {
           if (Math.abs(vy - y) < by) { by = Math.abs(vy - y); y = vy; }
         }
       }
-      if (bx >= tol) x = snapToGrid(x, gridUnits);
-      if (by >= tol) y = snapToGrid(y, gridUnits);
+      if (useGrid && bx >= tol) x = snapToGrid(x, gridUnits);
+      if (useGrid && by >= tol) y = snapToGrid(y, gridUnits);
       return [x, y];
     },
     [layout.rooms, gridUnits, m],
@@ -105,6 +160,13 @@ export function Canvas2D(p: Canvas2DProps) {
 
   // Runs before children: tracks fingers so a second finger turns any gesture into a pinch.
   const onPointerDownCapture = (e: React.PointerEvent) => {
+    if (p.placing && e.button === 0) {
+      // route the tap to onPointerDown regardless of what was tapped (marker, wall, furniture)
+      pointers.current.clear();
+      onPointerDown(e);
+      e.stopPropagation();
+      return;
+    }
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.current.size === 2) {
       const [a, b] = [...pointers.current.values()];
@@ -117,6 +179,15 @@ export function Canvas2D(p: Canvas2DProps) {
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (pointers.current.size >= 2) return;
+    if (p.placing && e.button === 0) {
+      e.stopPropagation();
+      const pt = snapToGridPt(toCanvas(e), gridUnits / 5);
+      const L = layoutRef.current;
+      if (selection?.kind === "item") p.onCommit(updateItem(L, selection.id, { x: pt[0], y: pt[1] }));
+      else if (selection?.kind === "furniture") p.onCommit(updateFurniture(L, selection.id, { x: pt[0], y: pt[1] }));
+      p.onPlaced?.();
+      return;
+    }
     const onBackground = (e.target as Element) === svgRef.current || (e.target as Element).classList.contains("dh-bg");
     if (tool === "select" && e.pointerType === "touch" && onBackground) {
       p.onSelect(null);
@@ -131,8 +202,18 @@ export function Canvas2D(p: Canvas2DProps) {
     }
     if (e.button !== 0) return;
     const pt = toCanvas(e);
-    if (tool === "rect") {
+    if (tool === "magic") {
+      magicAt(pt);
+    } else if (tool === "rect") {
       const s = snap(pt);
+      if (rectStart) {
+        // second tap completes the rectangle
+        const w = Math.abs(s[0] - rectStart[0]);
+        const h = Math.abs(s[1] - rectStart[1]);
+        if (w > 0.4 * m && h > 0.4 * m) p.onRoomDrawn(rectToPolygon(Math.min(s[0], rectStart[0]), Math.min(s[1], rectStart[1]), w, h));
+        setRectStart(null);
+        return;
+      }
       setDrag({ kind: "rect", start: s, cur: s });
       (e.currentTarget as Element).setPointerCapture(e.pointerId);
     } else if (tool === "polygon") {
@@ -230,6 +311,7 @@ export function Canvas2D(p: Canvas2DProps) {
       const w = Math.abs(x1 - x0);
       const h = Math.abs(y1 - y0);
       if (w > 0.4 * m && h > 0.4 * m) p.onRoomDrawn(rectToPolygon(Math.min(x0, x1), Math.min(y0, y1), w, h));
+      else if (w < 0.15 * m && h < 0.15 * m) setRectStart(drag.start); // a tap: wait for the opposite corner
     } else if (drag.kind === "item") {
       const item = layoutRef.current.items.find((i) => i.id === drag.id);
       if (drag.moved) p.onCommit(layoutRef.current);
@@ -327,7 +409,7 @@ export function Canvas2D(p: Canvas2DProps) {
   const cursor = tool === "select" ? (drag?.kind === "pan" ? "grabbing" : "default") : "crosshair";
 
   return (
-    <div className="dh-canvas-wrap">
+    <div className="dh-canvas-wrap" ref={wrapRef}>
       <svg
         ref={svgRef}
         viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
@@ -414,6 +496,14 @@ export function Canvas2D(p: Canvas2DProps) {
           <rect x={Math.min(drag.start[0], drag.cur[0])} y={Math.min(drag.start[1], drag.cur[1])} width={Math.abs(drag.cur[0] - drag.start[0])} height={Math.abs(drag.cur[1] - drag.start[1])} fill="#2563eb" fillOpacity={0.12} stroke="#2563eb" strokeWidth={0.03 * m} strokeDasharray={`${0.1 * m} ${0.06 * m}`} />
         )}
         {drag?.kind === "rect" && <DimLabel a={drag.start} b={drag.cur} m={m} />}
+        {tool === "rect" && rectStart && hover && !drag && (() => { const s = snap(hover); return (
+          <>
+            <rect x={Math.min(rectStart[0], s[0])} y={Math.min(rectStart[1], s[1])} width={Math.abs(s[0] - rectStart[0])} height={Math.abs(s[1] - rectStart[1])} fill="#2563eb" fillOpacity={0.12} stroke="#2563eb" strokeWidth={0.03 * m} strokeDasharray={`${0.1 * m} ${0.06 * m}`} />
+            <circle cx={rectStart[0]} cy={rectStart[1]} r={0.12 * m} fill="#2563eb" />
+            <DimLabel a={rectStart} b={s} m={m} />
+          </>
+        ); })()}
+        {tool === "rect" && rectStart && (!hover || drag) && <circle cx={rectStart[0]} cy={rectStart[1]} r={0.12 * m} fill="#2563eb" />}
         {tool === "polygon" && poly.length > 0 && (
           <>
             <polyline points={[...poly, hover ? snap(hover) : poly[poly.length - 1]].map((q) => q.join(",")).join(" ")} fill="none" stroke="#2563eb" strokeWidth={0.03 * m} strokeDasharray={`${0.1 * m} ${0.06 * m}`} />
@@ -428,9 +518,9 @@ export function Canvas2D(p: Canvas2DProps) {
         )}
       </svg>
       {layout.rooms.length === 0 && tool === "select" && (
-        <div className="dh-empty"><div><b>從畫房間開始</b><br />上方選「矩形房間」，在畫布上拖一下就是一間。<br />有平面圖的話先在右邊上傳底圖再描。</div></div>
+        <div className="dh-empty"><div><b>從畫房間開始</b><br />上方選「矩形房間」，點一個角再點對角就是一間。<br />有平面圖的話先上傳底圖，再用「點選房間」點房間內部自動框出。</div></div>
       )}
-      <div className="dh-hint">{hint(tool, poly.length, scalePts.length)}</div>
+      <div className="dh-hint">{notice ?? (p.placing ? "點畫布上的位置，把選取的物件移過去" : hint(tool, poly.length, scalePts.length, !!rectStart))}</div>
     </div>
   );
 }
@@ -441,8 +531,9 @@ function DimLabel({ a, b, m }: { a: Point; b: Point; m: number }) {
   return <text x={Math.max(a[0], b[0]) + 0.1 * m} y={Math.min(a[1], b[1]) - 0.1 * m} fontSize={0.25 * m} fill="#2563eb">{w.toFixed(2)} × {h.toFixed(2)} m</text>;
 }
 
-function hint(tool: Tool, polyN: number, scaleN: number): string {
-  if (tool === "rect") return "拖出一個矩形 = 一間房。滾輪縮放，Alt+拖曳平移。";
+function hint(tool: Tool, polyN: number, scaleN: number, rectPending = false): string {
+  if (tool === "magic") return "點底圖上房間的內部，自動框出封閉區域";
+  if (tool === "rect") return rectPending ? "再點對角的角落完成" : "點一個角、再點對角；或直接拖出矩形";
   if (tool === "polygon") return polyN === 0 ? "逐點點出房間輪廓，點回起點或按 Enter 完成，Esc 取消" : `已 ${polyN} 點，點回起點或 Enter 完成`;
   if (tool === "scale") return scaleN === 0 ? "點兩個已知距離的點（例如一面牆的兩端）" : "點第二個點";
   return "拖曳裝置或房間；點牆可選取（Shift 多選）；滾輪縮放，Alt+拖曳平移";

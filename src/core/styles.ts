@@ -14,7 +14,7 @@ export const CSS = `
 .dh-btn.small{padding:3px 8px;font-size:12px}
 .dh-btn.danger{color:#b91c1c;border-color:#fca5a5}
 .dh-body{display:flex;flex:1;min-height:0}
-.dh-canvas-wrap{flex:1;position:relative;overflow:hidden;background:#e9ebee;touch-action:none}
+.dh-canvas-wrap{flex:1;position:relative;overflow:hidden;background:#e9ebee;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:contain}
 .dh-canvas-wrap svg{width:100%;height:100%;display:block}
 .dh-hint{position:absolute;left:12px;bottom:10px;background:rgba(17,24,39,.8);color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;pointer-events:none}
 .dh-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}

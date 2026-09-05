@@ -291,7 +291,16 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
           scene.add(pool);
         };
         if (beam === "down" || beam === "both") addPool(0.02, false);
-        if (beam === "up" || beam === "both") addPool(ceilingH - 0.02, true);
+        if (beam === "up" || beam === "both") {
+          if (wallSide) {
+            // No ceiling in a dollhouse, so an up-throw reads as a glow on the wall above the fixture.
+            const gh = Math.max(0.2, ceilingH - y);
+            const wash = new THREE.Mesh(new THREE.PlaneGeometry(poolW, gh), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22 + 0.25 * bright, depthWrite: false, side: THREE.DoubleSide }));
+            wash.position.set(lx + inN[0] * 0.01, y + gh / 2, lz + inN[1] * 0.01);
+            wash.rotation.y = rotZ;
+            scene.add(wash);
+          } else addPool(ceilingH - 0.02, true);
+        }
         const pl = new THREE.PointLight(color, 5 + 14 * bright, 4.5, 1.6);
         // Shadows stop light leaking through walls onto the outside ground; scene renders on demand so the cost is fine.
         pl.castShadow = true;

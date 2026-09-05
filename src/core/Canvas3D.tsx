@@ -150,11 +150,11 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
   return (
     <div ref={mount} style={{ position: "absolute", inset: 0, background: "linear-gradient(#e5e7eb,#f3f4f6)", touchAction: "none" }}>
       <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
-        <button className="dh-btn" onClick={() => turn(-1)}>{t("⟲ 轉")}</button>
-        <button className="dh-btn" onClick={() => turn(1)}>{t("轉 ⟳")}</button>
-        <button className="dh-btn" onClick={() => zoomBy(1.25)}>{t("＋")}</button>
-        <button className="dh-btn" onClick={() => zoomBy(1 / 1.25)}>{t("－")}</button>
-        <button className="dh-btn" onClick={() => { const t = three.current; if (t) { t.camera.zoom = 1; t.camera.updateProjectionMatrix(); } placeCamera(0); }}>{t("重置")}</button>
+        <button className="dh-btn" aria-label={t("向左轉")} title={t("向左轉")} onClick={() => turn(-1)}>⟲</button>
+        <button className="dh-btn" aria-label={t("向右轉")} title={t("向右轉")} onClick={() => turn(1)}>⟳</button>
+        <button className="dh-btn" aria-label={t("放大")} title={t("放大")} onClick={() => zoomBy(1.25)}>+</button>
+        <button className="dh-btn" aria-label={t("縮小")} title={t("縮小")} onClick={() => zoomBy(1 / 1.25)}>−</button>
+        <button className="dh-btn" aria-label={t("重置")} title={t("重置")} onClick={() => { const tt = three.current; if (tt) { tt.camera.zoom = 1; tt.camera.updateProjectionMatrix(); } placeCamera(0); }}>⌂</button>
       </div>
       <div className="dh-hint">{t("拖曳旋轉，滾輪或雙指縮放，右鍵或雙指拖曳平移。狀態即時更新。")}</div>
       {fatal && (
@@ -198,6 +198,25 @@ function applyCutaway(scene: THREE.Scene, camera: THREE.Camera, target: THREE.Ve
     w.mesh.scale.y = target_h / w.h;
     w.mesh.position.y = target_h / 2;
   }
+}
+
+let poolTex: THREE.Texture | null = null;
+/** Feathered radial gradient so overlapping light pools blend instead of stacking as hard discs. */
+function poolTexture(): THREE.Texture {
+  if (poolTex) return poolTex;
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d")!;
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.35, "rgba(255,255,255,0.55)");
+  g.addColorStop(0.7, "rgba(255,255,255,0.15)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  poolTex = new THREE.CanvasTexture(c);
+  poolTex.colorSpace = THREE.SRGBColorSpace;
+  return poolTex;
 }
 
 function layoutSizeM(layout: Layout) {
@@ -252,7 +271,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     const shape = new THREE.Shape(room.points.map((p) => { const [x, z] = toM(p); return new THREE.Vector2(x, z); }));
     const geo = new THREE.ShapeGeometry(shape);
     const base = new THREE.Color(room.color ?? "#f8fafc");
-    const mat = new THREE.MeshStandardMaterial({ color: lit ? base.clone().lerp(new THREE.Color("#ffe4b5"), 0.6) : base, side: THREE.DoubleSide });
+    const mat = new THREE.MeshStandardMaterial({ color: lit ? base.clone().lerp(new THREE.Color("#ffe4b5"), 0.35) : base, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.rotation.x = Math.PI / 2; // shape (x,y) → (x,z)
     mesh.position.y = 0.01;
@@ -372,15 +391,17 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       if (on) {
         const beam = hasBeam(item, hass) ? effectiveBeam(item, hass) : "down";
         const wallSide = hugsWall(item, hass);
-        const poolMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18 + 0.2 * bright, depthWrite: false });
+        const poolMat = new THREE.MeshBasicMaterial({ map: poolTexture(), color, transparent: true, opacity: 0.1 + 0.16 * bright, depthWrite: false, blending: THREE.AdditiveBlending });
         const rotZ = THREE.MathUtils.degToRad(-(item.rotation ?? 0));
         // Pools hug the wall on the room side when wall-mounted, else centre on the fixture.
-        const poolW = fixture === "strip" ? L + 0.6 : 1.4;
-        const poolD = fixture === "strip" ? (wallSide ? 0.9 : 1.2) : wallSide ? 0.9 : 1.4;
+        // Wide, feathered pools that overlap and merge; radius grows with mount height.
+        const spread = 1.0 + Math.max(0, y - 1) * 0.5;
+        const poolW = fixture === "strip" ? L + 1.2 : 2.2 * spread;
+        const poolD = fixture === "strip" ? (wallSide ? 1.4 : 1.8) : wallSide ? 1.4 : 2.2 * spread;
         const px = wallSide ? lx + inN[0] * (poolD / 2) : x;
         const pz = wallSide ? lz + inN[1] * (poolD / 2) : z;
         const addPool = (yy: number, faceDown: boolean) => {
-          const pool = new THREE.Mesh(fixture === "strip" || wallSide ? new THREE.PlaneGeometry(poolW, poolD) : new THREE.CircleGeometry(0.7, 24), poolMat);
+          const pool = new THREE.Mesh(new THREE.PlaneGeometry(poolW, poolD), poolMat);
           pool.rotation.x = faceDown ? Math.PI / 2 : -Math.PI / 2;
           pool.rotation.z = rotZ;
           pool.position.set(px, yy, pz);
@@ -397,14 +418,21 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
             scene.add(wash);
           } else addPool(ceilingH - 0.02, true);
         }
-        const pl = new THREE.PointLight(color, 5 + 14 * bright, 4.5, 1.6);
-        // Shadows stop light leaking through walls onto the outside ground; scene renders on demand so the cost is fine.
-        pl.castShadow = true;
-        pl.shadow.mapSize.set(512, 512);
-        pl.shadow.bias = -0.002;
         const ly = beam === "up" ? Math.min(ceilingH - 0.15, y + 0.15) : Math.max(0.2, y - 0.1);
-        pl.position.set(wallSide ? lx + inN[0] * 0.2 : x, ly, wallSide ? lz + inN[1] * 0.2 : z);
-        scene.add(pl);
+        if (!wallSide && beam === "down" && fixture !== "strip") {
+          // Ceiling fixtures: a soft downward cone lights the floor for real; no shadow maps needed (cheap on phones).
+          const sp = new THREE.SpotLight(color, 2.5 + 6 * bright, 6, 0.9, 0.8, 1.3);
+          sp.position.set(x, ly, z);
+          sp.target.position.set(x, 0, z);
+          scene.add(sp, sp.target);
+        } else {
+          const pl = new THREE.PointLight(color, 5 + 14 * bright, 4.5, 1.6);
+          // Shadows stop wall-hugging lights leaking through walls onto the outside ground.
+          pl.castShadow = wallSide;
+          if (wallSide) { pl.shadow.mapSize.set(256, 256); pl.shadow.bias = -0.002; }
+          pl.position.set(wallSide ? lx + inN[0] * 0.2 : x, ly, wallSide ? lz + inN[1] * 0.2 : z);
+          scene.add(pl);
+        }
       }
     } else if (kind === "climate") {
       const mode = state?.state ?? "off";

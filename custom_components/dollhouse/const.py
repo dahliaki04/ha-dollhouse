@@ -1,7 +1,7 @@
 """Constants for Dollhouse."""
 
 DOMAIN = "dollhouse"
-VERSION = "0.3.4"
+VERSION = "0.3.5"
 
 PANEL_URL_PATH = "dollhouse"
 STATIC_URL = "/dollhouse_static"

@@ -2,6 +2,7 @@ import { autoPlace, entitiesInArea } from "../domain/entities";
 import { rectToPolygon } from "../domain/geometry";
 import { emptyLayout, type Layout, type Room } from "../domain/types";
 import { deriveWalls } from "../domain/walls";
+import { makeFurniture, type Furniture, type FurnitureType } from "../domain/furniture";
 import type { HassLike } from "./types";
 
 /** A 12 m × 8 m apartment with rooms linked to the mock areas and entities auto-placed. */
@@ -44,5 +45,24 @@ export function demoLayout(hass: HassLike): Layout {
   layout.wallThickness["w:r_master|r_kid|1"] = 0.1; // master right edge (1) shared with kid
   // Open-plan: living ↔ dining and dining ↔ kitchen are boundaries only.
   layout.wallVirtual = { "w:r_dining|r_living|3": true, "w:r_dining|r_kitchen|1": true }; // dining left edge (3) ↔ living, right edge (1) ↔ kitchen
+  const put = (type: FurnitureType, x: number, y: number, rotation = 0, patch: Partial<Furniture> = {}): Furniture => ({ ...makeFurniture(type, x * m, y * m), rotation, ...patch });
+  layout.furniture = [
+    put("rug", 3, 2.6),
+    put("sofa", 3, 3.8, 180),
+    put("coffee", 3, 2.6),
+    put("tv", 3, 0.45),
+    put("plant", 0.4, 4.5),
+    put("table", 7.5, 2.5, 90, { w: 1.6 }),
+    put("chair", 6.9, 2.0, 270), put("chair", 6.9, 3.0, 270), put("chair", 8.1, 2.0, 90), put("chair", 8.1, 3.0, 90),
+    put("counter", 10.5, 0.4, 0, { w: 2.6 }),
+    put("fridge", 11.6, 1.6, 270),
+    put("bed", 2.5, 6.9, 180),
+    put("wardrobe", 0.4, 6.5, 90, { w: 2.2 }),
+    put("bed", 6.75, 6.8, 180, { w: 1.2, color: "#fde68a" }),
+    put("desk", 8.1, 5.6, 90, { w: 1.0 }),
+    put("bathtub", 11.5, 6.5, 90),
+    put("toilet", 9.0, 7.5, 0),
+    put("sink", 9.0, 5.5, 180),
+  ];
   return layout;
 }

@@ -3,7 +3,9 @@ import type { Item, Layout, Point, Room, Wall } from "../domain/types";
 import { bbox, dist, rectToPolygon, snapToGrid } from "../domain/geometry";
 import { nearestWall, wallThicknessUnits } from "../domain/walls";
 import { lightColor, Marker } from "./markers";
-import { moveRoom, updateItem, updateRoom, type Selection, type Tool } from "./useEditor";
+import { FurnitureGlyph } from "./FurnitureGlyph";
+import type { Furniture } from "../domain/furniture";
+import { moveRoom, updateFurniture, updateItem, updateRoom, type Selection, type Tool } from "./useEditor";
 import type { HassLike } from "../ha/types";
 import { entitiesInArea, hugsWall } from "../domain/entities";
 
@@ -26,6 +28,7 @@ interface ViewBox { x: number; y: number; w: number; h: number }
 
 type Drag =
   | { kind: "item"; id: string; start: Point; orig: Point; moved: boolean }
+  | { kind: "furn"; id: string; start: Point; orig: Point; moved: boolean }
   | { kind: "room"; id: string; last: Point; moved: boolean }
   | { kind: "vertex"; id: string; index: number }
   | { kind: "rect"; start: Point; cur: Point }
@@ -191,6 +194,13 @@ export function Canvas2D(p: Canvas2DProps) {
       }
       setDrag({ ...drag, moved: true });
       p.onPreview(updateItem(layoutRef.current, drag.id, { x: target[0], y: target[1], ...patch }));
+    } else if (drag.kind === "furn") {
+      const dx = pt[0] - drag.start[0];
+      const dy = pt[1] - drag.start[1];
+      if (!drag.moved && Math.hypot(dx, dy) < 0.05 * m) return;
+      const target = e.shiftKey ? [drag.orig[0] + dx, drag.orig[1] + dy] : snapToGridPt([drag.orig[0] + dx, drag.orig[1] + dy], gridUnits / 5);
+      setDrag({ ...drag, moved: true });
+      p.onPreview(updateFurniture(layoutRef.current, drag.id, { x: target[0], y: target[1] }));
     } else if (drag.kind === "room") {
       const s = snapToGridPt(pt, gridUnits);
       const dx = s[0] - drag.last[0];
@@ -227,6 +237,8 @@ export function Canvas2D(p: Canvas2DProps) {
         if (e.detail >= 2) p.onDoubleTap(item);
         else p.onTap(item);
       }
+    } else if (drag.kind === "furn") {
+      if (drag.moved) p.onCommit(layoutRef.current);
     } else if (drag.kind === "room" || drag.kind === "vertex") {
       if (drag.kind === "vertex" || drag.moved) p.onCommit(layoutRef.current);
     }
@@ -265,6 +277,14 @@ export function Canvas2D(p: Canvas2DProps) {
     svgRef.current!.setPointerCapture(e.pointerId);
     p.onSelect({ kind: "item", id: item.id });
     setDrag({ kind: "item", id: item.id, start: toCanvas(e), orig: [item.x, item.y], moved: false });
+  };
+
+  const startFurnDrag = (e: React.PointerEvent, f: Furniture) => {
+    if (tool !== "select" || e.button !== 0) return;
+    e.stopPropagation();
+    svgRef.current!.setPointerCapture(e.pointerId);
+    p.onSelect({ kind: "furniture", id: f.id });
+    setDrag({ kind: "furn", id: f.id, start: toCanvas(e), orig: [f.x, f.y], moved: false });
   };
 
   const startRoomDrag = (e: React.PointerEvent, room: Room) => {
@@ -373,6 +393,11 @@ export function Canvas2D(p: Canvas2DProps) {
             </g>
           );
         })}
+
+        {/* furniture (decorative) */}
+        {(layout.furniture ?? []).map((f) => (
+          <FurnitureGlyph key={f.id} f={f} m={m} selected={selection?.kind === "furniture" && selection.id === f.id} onPointerDown={startFurnDrag} />
+        ))}
 
         {/* vertex handles for selected room */}
         {selRoom && tool === "select" && selRoom.points.map((q, i) => (

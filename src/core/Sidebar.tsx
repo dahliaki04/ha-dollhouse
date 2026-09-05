@@ -7,7 +7,9 @@ import type { Mount } from "../domain/types";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 import { importBackground } from "./background";
 import { KELVIN_PRESETS, kelvinToHex, lightColor } from "./markers";
-import { addItems, applyThickness, applyVirtual, removeItem, removeRoom, resetThickness, setBackground, updateItem, updateRoom, type Selection } from "./useEditor";
+import { addFurniture, addItems, applyThickness, applyVirtual, removeFurniture, removeItem, removeRoom, resetThickness, setBackground, updateFurniture, updateItem, updateRoom, type Selection } from "./useEditor";
+import { FURNITURE, FURNITURE_GROUPS, makeFurniture, type Furniture, type FurnitureType } from "../domain/furniture";
+import { centroid } from "../domain/geometry";
 
 export interface SidebarProps {
   layout: Layout;
@@ -47,6 +49,10 @@ export function Sidebar(p: SidebarProps) {
   if (selection?.kind === "item") {
     const item = layout.items.find((i) => i.id === selection.id);
     if (item) return <aside className="dh-side"><ItemPanel {...p} item={item} /></aside>;
+  }
+  if (selection?.kind === "furniture") {
+    const f = (layout.furniture ?? []).find((x) => x.id === selection.id);
+    if (f) return <aside className="dh-side"><FurniturePanel {...p} f={f} /></aside>;
   }
   if (selection?.kind === "walls") {
     const sel = walls.filter((w) => selection.ids.includes(w.id));
@@ -153,6 +159,23 @@ function LayoutPanel(p: SidebarProps) {
           setAddEntity("");
         }}>放到畫布中央</button>
         <div className="dh-muted" style={{ marginTop: 6 }}>比較快的做法：選一間房間 → 連結 HA area → 一鍵填入。</div>
+      </section>
+
+      <section>
+        <h3>加家具（純裝飾，不綁 entity）</h3>
+        {FURNITURE_GROUPS.map((grp) => (
+          <div key={grp} className="dh-row" style={{ marginBottom: 6 }}>
+            <span className="dh-muted" style={{ width: 34 }}>{grp}</span>
+            {(Object.keys(FURNITURE) as FurnitureType[]).filter((t) => FURNITURE[t].group === grp).map((t) => (
+              <button key={t} className="dh-btn small" onClick={() => {
+                const f = makeFurniture(t, layout.canvas.width / 2, layout.canvas.height / 2);
+                p.onCommit(addFurniture(layout, f));
+                p.onSelect({ kind: "furniture", id: f.id });
+              }}>{FURNITURE[t].label}</button>
+            ))}
+          </div>
+        ))}
+        <div className="dh-muted">先選一間房間再按，家具會放在那間房的中央。</div>
       </section>
 
       <section>
@@ -270,6 +293,22 @@ function RoomPanel(p: SidebarProps & { room: Room }) {
         <div className="dh-row" style={{ marginTop: 10 }}>
           <button className="dh-btn danger" onClick={() => { p.onCommit(removeRoom(layout, room.id)); p.onSelect(null); }}>刪除房間</button>
         </div>
+      </section>
+      <section>
+        <h3>在這間加家具</h3>
+        {FURNITURE_GROUPS.map((grp) => (
+          <div key={grp} className="dh-row" style={{ marginBottom: 6 }}>
+            <span className="dh-muted" style={{ width: 34 }}>{grp}</span>
+            {(Object.keys(FURNITURE) as FurnitureType[]).filter((t) => FURNITURE[t].group === grp).map((t) => (
+              <button key={t} className="dh-btn small" onClick={() => {
+                const c = centroid(room.points);
+                const f = makeFurniture(t, c[0], c[1]);
+                p.onCommit(addFurniture(layout, f));
+                p.onSelect({ kind: "furniture", id: f.id });
+              }}>{FURNITURE[t].label}</button>
+            ))}
+          </div>
+        ))}
       </section>
       {room.areaId && areaEntities.length > 0 && (
         <section>
@@ -437,6 +476,50 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
       <div className="dh-muted">位置 ({(item.x * layout.metresPerUnit).toFixed(2)}, {(item.y * layout.metresPerUnit).toFixed(2)}) m</div>
       <div className="dh-row" style={{ marginTop: 10 }}>
         <button className="dh-btn danger" onClick={() => { p.onCommit(removeItem(layout, item.id)); p.onSelect(null); }}>移除</button>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- furniture selected ---------- */
+
+function FurniturePanel(p: SidebarProps & { f: Furniture }) {
+  const { layout, f } = p;
+  const spec = FURNITURE[f.type];
+  const set = (patch: Partial<Furniture>) => p.onCommit(updateFurniture(layout, f.id, patch));
+  return (
+    <section>
+      <h3>家具</h3>
+      <div className="dh-field">
+        <label>種類</label>
+        <select value={f.type} onChange={(e) => { const t = e.target.value as FurnitureType; const s = FURNITURE[t]; set({ type: t, w: s.w, d: s.d, h: s.h, color: s.color }); }}>
+          {(Object.keys(FURNITURE) as FurnitureType[]).map((t) => <option key={t} value={t}>{FURNITURE[t].label}</option>)}
+        </select>
+      </div>
+      <div className="dh-row">
+        <NumberField label="寬 (m)" value={f.w} step={0.1} onChange={(v) => v > 0 && set({ w: v })} />
+        <NumberField label="深 (m)" value={f.d} step={0.1} onChange={(v) => v > 0 && set({ d: v })} />
+        <NumberField label="高 (m)" value={f.h} step={0.05} onChange={(v) => v >= 0 && set({ h: v })} />
+      </div>
+      <div className="dh-field">
+        <label>方向</label>
+        <div className="dh-row">
+          {[0, 90, 180, 270].map((r) => <button key={r} className={`dh-btn small${f.rotation === r ? " on" : ""}`} onClick={() => set({ rotation: r })}>{r}°</button>)}
+          <input type="number" step={15} style={{ width: 70 }} value={f.rotation} onChange={(e) => set({ rotation: Number(e.target.value) || 0 })} />
+        </div>
+      </div>
+      <div className="dh-row">
+        <div className="dh-field"><label>顏色</label><input type="color" value={f.color} onChange={(e) => set({ color: e.target.value })} /></div>
+        <button className="dh-btn small" style={{ marginTop: 16 }} onClick={() => set({ w: spec.w, d: spec.d, h: spec.h, color: spec.color })}>回預設尺寸</button>
+      </div>
+      <div className="dh-field">
+        <label>標籤（選填）</label>
+        <input value={f.label ?? ""} placeholder={spec.label} onChange={(e) => set({ label: e.target.value || null })} />
+      </div>
+      <div className="dh-muted">拖曳移動；Shift 拖曳不吸附格點。</div>
+      <div className="dh-row" style={{ marginTop: 10 }}>
+        <button className="dh-btn" onClick={() => { const c = makeFurniture(f.type, f.x + 0.3 / layout.metresPerUnit, f.y + 0.3 / layout.metresPerUnit); p.onCommit(addFurniture(layout, { ...c, w: f.w, d: f.d, h: f.h, color: f.color, rotation: f.rotation })); p.onSelect({ kind: "furniture", id: c.id }); }}>複製</button>
+        <button className="dh-btn danger" onClick={() => { p.onCommit(removeFurniture(layout, f.id)); p.onSelect(null); }}>刪除</button>
       </div>
     </section>
   );

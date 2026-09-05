@@ -1,9 +1,10 @@
 import { useReducer } from "react";
 import type { Background, Item, Layout, Point, Room } from "../domain/types";
+import type { Furniture } from "../domain/furniture";
 import { newId } from "../domain/types";
 import { deriveWalls, pruneOverrides, pruneVirtual, setThickness, setVirtual } from "../domain/walls";
 
-export type Selection = { kind: "room"; id: string } | { kind: "item"; id: string } | { kind: "walls"; ids: string[] } | null;
+export type Selection = { kind: "room"; id: string } | { kind: "item"; id: string } | { kind: "furniture"; id: string } | { kind: "walls"; ids: string[] } | null;
 export type Tool = "select" | "rect" | "polygon" | "scale";
 export type View = "2d" | "3d";
 
@@ -87,7 +88,12 @@ export function moveRoom(layout: Layout, id: string, dx: number, dy: number, wit
   const room = layout.rooms.find((r) => r.id === id);
   if (!room) return next;
   const inside = new Set(layout.items.filter((i) => insidePolygon([i.x, i.y], room.points)).map((i) => i.id));
-  return { ...next, items: next.items.map((i) => (inside.has(i.id) ? { ...i, x: i.x + dx, y: i.y + dy } : i)) };
+  const insideF = new Set((layout.furniture ?? []).filter((f) => insidePolygon([f.x, f.y], room.points)).map((f) => f.id));
+  return {
+    ...next,
+    items: next.items.map((i) => (inside.has(i.id) ? { ...i, x: i.x + dx, y: i.y + dy } : i)),
+    furniture: (next.furniture ?? []).map((f) => (insideF.has(f.id) ? { ...f, x: f.x + dx, y: f.y + dy } : f)),
+  };
 }
 
 export function removeRoom(layout: Layout, id: string): Layout {
@@ -104,6 +110,18 @@ export function updateItem(layout: Layout, id: string, patch: Partial<Item>): La
 
 export function removeItem(layout: Layout, id: string): Layout {
   return { ...layout, items: layout.items.filter((i) => i.id !== id) };
+}
+
+export function addFurniture(layout: Layout, f: Furniture): Layout {
+  return { ...layout, furniture: [...(layout.furniture ?? []), f] };
+}
+
+export function updateFurniture(layout: Layout, id: string, patch: Partial<Furniture>): Layout {
+  return { ...layout, furniture: (layout.furniture ?? []).map((f) => (f.id === id ? { ...f, ...patch } : f)) };
+}
+
+export function removeFurniture(layout: Layout, id: string): Layout {
+  return { ...layout, furniture: (layout.furniture ?? []).filter((f) => f.id !== id) };
 }
 
 export function applyThickness(layout: Layout, ids: string[], metres: number): Layout {

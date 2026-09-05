@@ -8,6 +8,7 @@ import { effectiveBeam, effectiveHeight, hasBeam, hugsWall, resolveKind } from "
 import { coverInward, coverView, curtainPanels, wallInward } from "../domain/covers";
 import type { HassLike } from "../ha/types";
 import { brightness01, lightColor } from "./markers";
+import { buildFurniture } from "./furniture3d";
 
 export interface Canvas3DProps {
   layout: Layout;
@@ -236,6 +237,15 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     scene.add(mesh);
+  }
+
+  // Furniture.
+  for (const f of layout.furniture ?? []) {
+    const g = buildFurniture(f);
+    const [fx, fz] = toM([f.x, f.y]);
+    g.position.set(fx, 0, fz);
+    g.rotation.y = THREE.MathUtils.degToRad(-f.rotation);
+    scene.add(g);
   }
 
   // Items.

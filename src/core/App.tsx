@@ -6,7 +6,7 @@ import { domainOf, type HassLike, type LayoutStore } from "../ha/types";
 import { Canvas2D } from "./Canvas2D";
 import { Sidebar } from "./Sidebar";
 import { injectStyles } from "./styles";
-import { addRoom, removeItem, removeRoom, setScale, useEditor, type Tool } from "./useEditor";
+import { addRoom, removeFurniture, removeItem, removeRoom, setScale, useEditor, type Tool } from "./useEditor";
 
 export interface AppProps {
   hass: HassLike;
@@ -96,6 +96,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
         const sel = state.selection;
         if (sel?.kind === "item") { commit(removeItem(state.layout, sel.id)); select(null); }
         if (sel?.kind === "room") { commit(removeRoom(state.layout, sel.id)); select(null); }
+        if (sel?.kind === "furniture") { commit(removeFurniture(state.layout, sel.id)); select(null); }
       } else if (e.key === "Escape") { select(null); setTool("select"); }
       else if (e.key === "v") setTool("select");
       else if (e.key === "r") setTool("rect");

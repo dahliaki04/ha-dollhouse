@@ -90,6 +90,8 @@ export interface Layout {
   background?: Background | null;
   rooms: Room[];
   items: Item[];
+  /** Decorative furniture (no entity binding). Optional for layouts saved before it existed. */
+  furniture?: import("./furniture").Furniture[];
   wallDefaults: WallDefaults;
   /** Per-wall thickness overrides in metres, keyed by derived wall id. */
   wallThickness: Record<string, number>;
@@ -129,6 +131,7 @@ export function emptyLayout(name = "我的家"): Layout {
     background: null,
     rooms: [],
     items: [],
+    furniture: [],
     wallDefaults: { ...DEFAULT_WALLS },
     wallThickness: {},
     wallVirtual: {},

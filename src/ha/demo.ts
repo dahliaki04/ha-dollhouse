@@ -48,14 +48,15 @@ export function demoLayout(hass: HassLike): Layout {
   const put = (type: FurnitureType, x: number, y: number, rotation = 0, patch: Partial<Furniture> = {}): Furniture => ({ ...makeFurniture(type, x * m, y * m), rotation, ...patch });
   layout.furniture = [
     put("rug", 3, 2.6),
-    put("sofa", 3, 3.8, 180),
+    // Brian's real sofa (from photo): 3-seat greige leather, slim metal legs, ~2.3 × 0.95 × 0.85 m
+    put("sofa", 3, 3.8, 180, { w: 2.3, d: 0.95, h: 0.85, color: "#d8d2c8", label: "客廳沙發" }),
     put("coffee", 3, 2.6),
     put("tv", 3, 0.45),
     put("plant", 0.4, 4.5),
     put("table", 7.5, 2.5, 90, { w: 1.6 }),
     put("chair", 6.9, 2.0, 270), put("chair", 6.9, 3.0, 270), put("chair", 8.1, 2.0, 90), put("chair", 8.1, 3.0, 90),
-    put("counter", 10.5, 0.4, 0, { w: 2.6 }),
-    put("fridge", 11.6, 1.6, 270),
+    put("counter", 11.6, 1.6, 90, { w: 2.4 }),
+    put("fridge", 9.6, 2.5, 90),
     put("bed", 2.5, 6.9, 180),
     put("wardrobe", 0.4, 6.5, 90, { w: 2.2 }),
     put("bed", 6.75, 6.8, 180, { w: 1.2, color: "#fde68a" }),

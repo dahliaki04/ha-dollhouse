@@ -30,6 +30,8 @@ export function demoLayout(hass: HassLike): Layout {
     if (!r.areaId) continue;
     layout.items.push(...autoPlace(hass, r, entitiesInArea(hass, r.areaId), layout.items, 1.0 / layout.metresPerUnit, walls));
   }
+  const cove = layout.items.find((i) => i.entityId === "light.kid_cove_strip");
+  if (cove) Object.assign(cove, { mount: "wall", z: 2.3, length: 3, x: 6.75 * m, y: 8 * m, rotation: 0 }); // on the kid room south wall, throws up
   const ac = layout.items.find((i) => i.entityId === "climate.daikin_living");
   if (ac) ac.mount = "ceiling"; // Daikin cassette
   const kitchen = layout.items.find((i) => i.entityId === "light.kitchen_downlight");

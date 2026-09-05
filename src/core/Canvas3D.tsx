@@ -4,8 +4,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Layout, Point } from "../domain/types";
 import { deriveWalls, nearestWall } from "../domain/walls";
 import { bbox, centroid } from "../domain/geometry";
-import { effectiveHeight, resolveKind } from "../domain/entities";
-import { coverInward, coverView } from "../domain/covers";
+import { effectiveBeam, effectiveHeight, hasBeam, hugsWall, resolveKind } from "../domain/entities";
+import { coverInward, coverView, wallInward } from "../domain/covers";
 import type { HassLike } from "../ha/types";
 import { brightness01, lightColor } from "./markers";
 
@@ -253,7 +253,19 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       else if (fixture === "ceiling") geo = new THREE.CylinderGeometry(0.25, 0.25, 0.06, 24);
       else geo = new THREE.CylinderGeometry(0.09, 0.09, 0.03, 16);
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, y, z);
+      // Wall-hugging lights sit just off the wall face, on the room side.
+      let lx = x;
+      let lz = z;
+      let inN: [number, number] = [0, 0];
+      if (hugsWall(item, hass)) {
+        const inward = wallInward(layout, item);
+        const near = nearestWall(walls, [item.x, item.y]);
+        const off = (near && near.d < 0.5 / mpu ? near.wall.thickness / 2 : 0) + 0.04;
+        inN = [inward.n[0], inward.n[1]];
+        lx = x + inN[0] * off;
+        lz = z + inN[1] * off;
+      }
+      mesh.position.set(lx, y, lz);
       mesh.rotation.y = THREE.MathUtils.degToRad(-(item.rotation ?? 0));
       if (fixture === "pendant") {
         const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, Math.max(0.05, ceilingH - y), 6), new THREE.MeshStandardMaterial({ color: 0x374151 }));
@@ -262,16 +274,28 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       }
       scene.add(mesh);
       if (on) {
+        const beam = hasBeam(item, hass) ? effectiveBeam(item, hass) : "down";
+        const wallSide = hugsWall(item, hass);
+        const poolMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18 + 0.2 * bright, depthWrite: false });
+        const rotZ = THREE.MathUtils.degToRad(-(item.rotation ?? 0));
+        // Pools hug the wall on the room side when wall-mounted, else centre on the fixture.
+        const poolW = fixture === "strip" ? L + 0.6 : 1.4;
+        const poolD = fixture === "strip" ? (wallSide ? 0.9 : 1.2) : wallSide ? 0.9 : 1.4;
+        const px = wallSide ? lx + inN[0] * (poolD / 2) : x;
+        const pz = wallSide ? lz + inN[1] * (poolD / 2) : z;
+        const addPool = (yy: number, faceDown: boolean) => {
+          const pool = new THREE.Mesh(fixture === "strip" || wallSide ? new THREE.PlaneGeometry(poolW, poolD) : new THREE.CircleGeometry(0.7, 24), poolMat);
+          pool.rotation.x = faceDown ? Math.PI / 2 : -Math.PI / 2;
+          pool.rotation.z = rotZ;
+          pool.position.set(px, yy, pz);
+          scene.add(pool);
+        };
+        if (beam === "down" || beam === "both") addPool(0.02, false);
+        if (beam === "up" || beam === "both") addPool(ceilingH - 0.02, true);
         const pl = new THREE.PointLight(color, 5 + 14 * bright, 5, 1.6);
-        pl.position.set(x, Math.max(0.2, y - 0.1), z);
+        const ly = beam === "up" ? Math.min(ceilingH - 0.15, y + 0.15) : Math.max(0.2, y - 0.1);
+        pl.position.set(wallSide ? lx + inN[0] * 0.2 : x, ly, wallSide ? lz + inN[1] * 0.2 : z);
         scene.add(pl);
-        // Light pool on the floor.
-        const poolGeo = fixture === "strip" ? new THREE.PlaneGeometry(L + 0.6, 1.2) : new THREE.CircleGeometry(0.7, 24);
-        const pool = new THREE.Mesh(poolGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18 + 0.2 * bright, depthWrite: false }));
-        pool.rotation.x = -Math.PI / 2;
-        pool.rotation.z = THREE.MathUtils.degToRad(-(item.rotation ?? 0));
-        pool.position.set(x, 0.02, z);
-        scene.add(pool);
       }
     } else if (kind === "climate") {
       const mode = state?.state ?? "off";

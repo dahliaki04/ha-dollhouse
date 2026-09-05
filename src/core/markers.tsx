@@ -1,6 +1,7 @@
 import type { Item, Layout } from "../domain/types";
 import { resolveKind } from "../domain/entities";
-import { coverInward, coverView } from "../domain/covers";
+import { coverInward, coverView, wallInward } from "../domain/covers";
+import { effectiveBeam, hugsWall } from "../domain/entities";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 
 export interface MarkerProps {
@@ -78,14 +79,15 @@ export function Marker(props: MarkerProps) {
   };
   const ring = props.selected ? <circle r={0.32 * m} fill="none" stroke="#2563eb" strokeWidth={0.03 * m} strokeDasharray={`${0.06 * m} ${0.04 * m}`} /> : null;
 
-  if (kind === "light") return <g {...common}>{ring}<LightGlyph item={item} hass={hass} m={m} /></g>;
+  if (kind === "light") return <g {...common}>{ring}<LightGlyph item={item} hass={hass} m={m} side={hugsWall(item, hass) ? (wallInward(layout, item).flip ? -1 : 1) : 0} beam={effectiveBeam(item, hass)} /></g>;
   if (kind === "climate") return <g {...common}>{ring}<ClimateChip item={item} hass={hass} m={m} /></g>;
   if (kind === "presence") return <g {...common}>{ring}<PresenceDot item={item} hass={hass} m={m} /></g>;
   if (kind === "cover") return <g {...common}>{ring}<CoverGlyph item={item} hass={hass} m={m} flip={coverInward(layout, item).flip} /></g>;
   return <g {...common}>{ring}<GenericChip item={item} hass={hass} m={m} /></g>;
 }
 
-function LightGlyph({ item, hass, m }: { item: Item; hass: HassLike; m: number }) {
+/** side: 0 = free-standing (symmetric glow), ±1 = which local-y side faces the room. */
+function LightGlyph({ item, hass, m, side, beam }: { item: Item; hass: HassLike; m: number; side: number; beam: string }) {
   const s = hass.states[item.entityId];
   const on = s?.state === "on";
   const color = lightColor(hass, item.entityId, item.color);
@@ -96,10 +98,15 @@ function LightGlyph({ item, hass, m }: { item: Item; hass: HassLike; m: number }
   switch (fixture) {
     case "strip": {
       const L = (item.length ?? 1) * m;
+      // Wall-mounted: glow spills into the room on one side; ceiling-mounted: symmetric.
+      const spill = side === 0 ? 0 : side * (beam === "up" ? 0.35 : 0.25) * m;
+      const gh = side === 0 ? 0.24 * m : (beam === "up" ? 0.7 : 0.5) * m;
+      const gy = side === 0 ? -0.12 * m : spill > 0 ? 0 : -gh;
       return (
         <>
-          {on && <rect x={-L / 2 - 0.1 * m} y={-0.12 * m} width={L + 0.2 * m} height={0.24 * m} rx={0.12 * m} fill={color} opacity={0.35} filter="url(#dh-glow)" />}
+          {on && <rect x={-L / 2 - 0.1 * m} y={gy} width={L + 0.2 * m} height={gh} rx={0.12 * m} fill={color} opacity={side === 0 ? 0.35 : 0.28} filter="url(#dh-glow)" />}
           <rect x={-L / 2} y={-0.05 * m} width={L} height={0.1 * m} rx={0.05 * m} fill={on ? color : "#fff"} stroke={stroke} strokeWidth={0.02 * m} />
+          {side !== 0 && on && <path d={`M ${-0.12 * m} ${side * 0.12 * m} L 0 ${side * 0.22 * m} L ${0.12 * m} ${side * 0.12 * m}`} fill="none" stroke={stroke} strokeWidth={0.02 * m} opacity={0.6} />}
         </>
       );
     }

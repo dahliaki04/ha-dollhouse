@@ -1,4 +1,4 @@
-import type { FixtureType, Item, ItemKind, Layout, Mount, Point, Room, Wall } from "./types";
+import type { Beam, FixtureType, Item, ItemKind, Layout, Mount, Point, Room, Wall } from "./types";
 import { newId } from "./types";
 import { bbox, pointInPolygon } from "./geometry";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
@@ -83,6 +83,31 @@ export function mountHeight(item: Pick<Item, "kind" | "entityId" | "fixture">, m
   if (kind === "climate") return 2.2; // wall unit
   if (kind === "presence") return 1.5;
   return 1.2; // switches, thermostats, sensors
+}
+
+/** Strips and wall lamps have a throw direction; everything else is "down". */
+export function hasBeam(item: Item, hass: HassLike): boolean {
+  return resolveKind(item, hass) === "light" && (item.fixture === "strip" || item.fixture === "wall");
+}
+
+export function defaultBeam(item: Item, hass: HassLike): Beam {
+  const mount = item.mount ?? defaultMount(item, hass);
+  if (item.fixture === "wall") return "both";
+  // strips: cove lighting on walls throws up; ceiling / under-cabinet throws down
+  return mount === "wall" ? "up" : "down";
+}
+
+export function effectiveBeam(item: Item, hass: HassLike): Beam {
+  return item.beam ?? defaultBeam(item, hass);
+}
+
+/** Items that live on a wall: covers, wall lamps, wall-mounted strips. They snap to walls. */
+export function hugsWall(item: Item, hass: HassLike): boolean {
+  const kind = resolveKind(item, hass);
+  if (kind === "cover") return true;
+  if (kind !== "light") return false;
+  if (item.fixture === "wall") return true;
+  return item.fixture === "strip" && (item.mount ?? defaultMount(item, hass)) === "wall";
 }
 
 /** Effective height: custom z → mount preset → default mount. */

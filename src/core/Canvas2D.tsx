@@ -5,7 +5,7 @@ import { nearestWall, wallThicknessUnits } from "../domain/walls";
 import { lightColor, Marker } from "./markers";
 import { moveRoom, updateItem, updateRoom, type Selection, type Tool } from "./useEditor";
 import type { HassLike } from "../ha/types";
-import { entitiesInArea, resolveKind } from "../domain/entities";
+import { entitiesInArea, hugsWall } from "../domain/entities";
 
 export interface Canvas2DProps {
   layout: Layout;
@@ -177,8 +177,8 @@ export function Canvas2D(p: Canvas2DProps) {
       let target: Point = e.shiftKey ? [drag.orig[0] + dx, drag.orig[1] + dy] : snapToGridPt([drag.orig[0] + dx, drag.orig[1] + dy], gridUnits / 5);
       const item = layoutRef.current.items.find((i) => i.id === drag.id);
       let patch: Partial<Item> = {};
-      if (item && resolveKind(item, hass) === "cover" && !e.shiftKey) {
-        // Covers live on walls: snap to the nearest wall within 0.5 m and align to it.
+      if (item && hugsWall(item, hass) && !e.shiftKey) {
+        // Covers, wall lamps and wall strips live on walls: snap to the nearest wall within 0.5 m and align to it.
         const raw: Point = [drag.orig[0] + dx, drag.orig[1] + dy];
         const hit = nearestWall(walls, raw);
         if (hit) {

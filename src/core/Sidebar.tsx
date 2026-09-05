@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import type { CoverStyle, FixtureType, Item, ItemKind, Layout, Wall } from "../domain/types";
 import { coverView, guessCoverStyle } from "../domain/covers";
-import { autoPlace, defaultMount, effectiveHeight, entitiesInArea, makeItem, mountHeight, PLACEABLE_DOMAINS, resolveKind } from "../domain/entities";
+import { autoPlace, defaultBeam, defaultMount, effectiveHeight, entitiesInArea, hasBeam, makeItem, mountHeight, PLACEABLE_DOMAINS, resolveKind } from "../domain/entities";
+import type { Beam } from "../domain/types";
 import type { Mount } from "../domain/types";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 import { importBackground } from "./background";
@@ -355,6 +356,20 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
           </div>
         </div>
       )}
+      {hasBeam(item, hass) && (() => {
+        const BEAMS: { v: Beam; label: string }[] = [{ v: "down", label: "向下" }, { v: "up", label: "向上" }, { v: "both", label: "上下" }];
+        const d = defaultBeam(item, hass);
+        return (
+          <div className="dh-field">
+            <label>投光方向 {item.beam ? "" : `（預設 ${BEAMS.find((b) => b.v === d)?.label}）`}</label>
+            <div className="dh-row">
+              <button className={`dh-btn small${!item.beam ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { beam: null }))}>自動</button>
+              {BEAMS.map((b) => <button key={b.v} className={`dh-btn small${item.beam === b.v ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { beam: b.v }))}>{b.label}</button>)}
+            </div>
+            <div className="dh-muted">{item.fixture === "strip" ? "牆面層板燈向上打天花板，天花板或櫃下燈條向下打。牆面安裝的燈條拖到牆邊會自動貼齊。" : "壁燈預設上下都打。"}</div>
+          </div>
+        );
+      })()}
       {kind === "light" && (item.fixture === "wall" || item.fixture === "strip") && (
         <div className="dh-field">
           <label>旋轉 (°)</label>

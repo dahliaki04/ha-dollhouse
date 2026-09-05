@@ -54,6 +54,11 @@ export function coverView(hass: HassLike, item: Item): CoverView {
  * side that lands inside a room (default: the local +y side).
  */
 export function coverInward(layout: Layout, item: Item): { n: Point; flip: boolean } {
+  return wallInward(layout, item);
+}
+
+/** Same as coverInward but for any wall-hugging item (strips, wall lamps). */
+export function wallInward(layout: Layout, item: Pick<Item, "x" | "y" | "rotation">): { n: Point; flip: boolean } {
   const th = ((item.rotation ?? 0) * Math.PI) / 180;
   const n: Point = [-Math.sin(th), Math.cos(th)];
   const probe = 0.4 / layout.metresPerUnit;

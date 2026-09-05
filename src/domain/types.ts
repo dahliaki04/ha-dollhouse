@@ -18,6 +18,9 @@ export type CoverStyle = "curtain" | "roller" | "blind";
 /** Where the object is mounted. Drives the 3D height (and the default z). */
 export type Mount = "ceiling" | "wall" | "floor";
 
+/** Which way a strip / wall lamp throws its light. */
+export type Beam = "down" | "up" | "both";
+
 export interface Room {
   id: string;
   name: string;
@@ -40,6 +43,8 @@ export interface Item {
   mount?: Mount | null;
   /** Custom height above floor in metres; overrides the mount preset. */
   z?: number | null;
+  /** Light throw direction for strips and wall lamps; default depends on mount. */
+  beam?: Beam | null;
   /** Rotation in degrees, for wall lights / strips. */
   rotation?: number;
   /** Physical length in metres (strips). Default 1.0. */

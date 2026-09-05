@@ -30,7 +30,10 @@ async function boot() {
   const q = new URLSearchParams(location.search);
   if (q.get("lang") === "en" || q.get("lang") === "zh-Hant") writeLangOverride(q.get("lang") as "en" | "zh-Hant");
   const seed = createMockHass(() => {});
-  if (q.has("empty")) {
+  if (q.get("layout")) {
+    // ?layout=<url> loads a layout JSON (e.g. an export) into the store
+    await store.save(await (await fetch(q.get("layout")!)).json());
+  } else if (q.has("empty")) {
     localStorage.removeItem("dollhouse:welcomed");
     await store.save(emptyLayout("我的家"));
   } else if (q.has("plan")) {

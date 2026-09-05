@@ -103,8 +103,6 @@ export interface Layout {
   labels3d?: boolean;
   /** Structure lock: rooms cannot be moved, reshaped, added or deleted while true. Devices and furniture stay editable. */
   locked?: boolean;
-  /** Structure lock: rooms cannot be moved, reshaped, added or deleted while true. Devices and furniture stay editable. */
-  locked?: boolean;
 }
 
 /** A wall derived from room edges. Never stored; always recomputed. */

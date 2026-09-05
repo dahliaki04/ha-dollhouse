@@ -12080,10 +12080,6 @@ function Yx(a) {
         J.stopPropagation(), a.onSelect({ kind: "room", id: _t.id });
         return;
       }
-      if (t.locked) {
-        J.stopPropagation(), a.onSelect({ kind: "room", id: _t.id });
-        return;
-      }
       J.stopPropagation(), u.current.setPointerCapture(J.pointerId), a.onSelect({ kind: "room", id: _t.id }), g({ kind: "room", id: _t.id, last: il(D(J), st), moved: !1 });
     }
   }, jt = (J, _t, pt) => {

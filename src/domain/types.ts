@@ -93,6 +93,8 @@ export interface Layout {
   wallDefaults: WallDefaults;
   /** Per-wall thickness overrides in metres, keyed by derived wall id. */
   wallThickness: Record<string, number>;
+  /** Walls that exist only as a room boundary (open-plan kitchen/living), keyed by wall id. */
+  wallVirtual?: Record<string, true>;
   /** Grid in metres for snapping (0 = off). */
   grid: number;
 }
@@ -109,6 +111,8 @@ export interface Wall {
   thickness: number;
   /** True when thickness comes from an explicit override. */
   overridden: boolean;
+  /** Boundary only, no physical wall. */
+  virtual: boolean;
 }
 
 export const DEFAULT_WALLS: WallDefaults = { exterior: 0.24, interior: 0.12, height: 2.8 };
@@ -127,6 +131,7 @@ export function emptyLayout(name = "我的家"): Layout {
     items: [],
     wallDefaults: { ...DEFAULT_WALLS },
     wallThickness: {},
+    wallVirtual: {},
     grid: 0.5,
   };
 }

@@ -220,6 +220,14 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     const b = toM(w.b);
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
     if (len < 0.01) continue;
+    if (w.virtual) {
+      // Open-plan boundary: a faint seam on the floor, no wall.
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(len, 0.012, 0.04), new THREE.MeshStandardMaterial({ color: 0xcbd5e1 }));
+      seam.position.set((a[0] + b[0]) / 2, 0.02, (a[1] + b[1]) / 2);
+      seam.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
+      scene.add(seam);
+      continue;
+    }
     const h = w.exterior ? layout.wallDefaults.height : Math.max(...w.rooms.map((id) => layout.rooms.find((r) => r.id === id)?.height ?? layout.wallDefaults.height));
     const geo = new THREE.BoxGeometry(len + (w.exterior ? w.thickness : 0), h, w.thickness);
     const mesh = new THREE.Mesh(geo, w.exterior ? wallMatExt : wallMat);

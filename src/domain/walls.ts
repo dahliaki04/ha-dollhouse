@@ -64,7 +64,7 @@ export function deriveWalls(layout: Layout, tolUnits?: number): Wall[] {
 function makeWall(layout: Layout, id: string, a: Point, b: Point, exterior: boolean, rooms: string[]): Wall {
   const override = layout.wallThickness[id];
   const thickness = override ?? (exterior ? layout.wallDefaults.exterior : layout.wallDefaults.interior);
-  return { id, a, b, exterior, rooms, thickness, overridden: override !== undefined };
+  return { id, a, b, exterior, rooms, thickness, overridden: override !== undefined, virtual: !!layout.wallVirtual?.[id] };
 }
 
 /** Closest wall to a point, with its distance in canvas units. */
@@ -94,5 +94,23 @@ export function pruneOverrides(layout: Layout, walls: Wall[]): Record<string, nu
   const live = new Set(walls.map((w) => w.id));
   const next: Record<string, number> = {};
   for (const [id, t] of Object.entries(layout.wallThickness)) if (live.has(id)) next[id] = t;
+  return next;
+}
+
+/** Same for the virtual-wall set. */
+export function pruneVirtual(layout: Layout, walls: Wall[]): Record<string, true> {
+  const live = new Set(walls.map((w) => w.id));
+  const next: Record<string, true> = {};
+  for (const id of Object.keys(layout.wallVirtual ?? {})) if (live.has(id)) next[id] = true;
+  return next;
+}
+
+/** Mark walls as virtual (boundary only) or physical. */
+export function setVirtual(layout: Layout, wallIds: string[], virtual: boolean): Record<string, true> {
+  const next: Record<string, true> = { ...(layout.wallVirtual ?? {}) };
+  for (const id of wallIds) {
+    if (virtual) next[id] = true;
+    else delete next[id];
+  }
   return next;
 }

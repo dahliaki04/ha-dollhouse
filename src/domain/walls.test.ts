@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyLayout, type Layout, type Room } from "./types";
 import { rectToPolygon } from "./geometry";
-import { deriveWalls, pruneOverrides, setThickness } from "./walls";
+import { deriveWalls, pruneOverrides, pruneVirtual, setThickness, setVirtual } from "./walls";
 
 const room = (id: string, x: number, y: number, w: number, h: number): Room => ({
   id,
@@ -76,6 +76,21 @@ describe("deriveWalls", () => {
     const pruned = pruneOverrides(l2, deriveWalls(l2));
     // a's edges 0,2,3 keep their exterior ids; edge 1 was interior (w:a|b|1) and is now a new exterior wall.
     expect(Object.keys(pruned).sort()).toEqual(["w:a|0|0", "w:a|2|0", "w:a|3|0"]);
+  });
+
+  it("virtual walls keep the room boundary but flag the wall; pruned when the wall disappears", () => {
+    const base = layoutWith(room("a", 0, 0, 400, 300), room("b", 400, 0, 300, 300));
+    const interiorId = deriveWalls(base).find((w) => !w.exterior)!.id;
+    const l2 = { ...base, wallVirtual: setVirtual(base, [interiorId], true) };
+    const w = deriveWalls(l2).find((x) => !x.exterior)!;
+    expect(w.virtual).toBe(true);
+    expect(deriveWalls(l2).filter((x) => x.virtual)).toHaveLength(1);
+    // still two rooms, still one shared boundary
+    expect(l2.rooms).toHaveLength(2);
+    const l3 = { ...l2, rooms: [l2.rooms[0]] };
+    expect(Object.keys(pruneVirtual(l3, deriveWalls(l3)))).toHaveLength(0);
+    // turning it back off removes the flag
+    expect(Object.keys(setVirtual(l2, [interiorId], false))).toHaveLength(0);
   });
 
   it("select-all style: applying to every wall id overrides everything", () => {

@@ -42,5 +42,7 @@ export function demoLayout(hass: HassLike): Layout {
   if (strip) Object.assign(strip, { length: 2.5, x: 3 * m, y: 0.4 * m });
   // Make the living/dining partition thinner so the override path is exercised.
   layout.wallThickness["w:r_dining|r_living|1"] = 0.1;
+  // Open-plan: living ↔ dining and dining ↔ kitchen are boundaries only.
+  layout.wallVirtual = { "w:r_dining|r_living|1": true, "w:r_dining|r_kitchen|1": true };
   return layout;
 }

@@ -363,11 +363,11 @@ export function Canvas2D(p: Canvas2DProps) {
 
         {/* walls */}
         {walls.map((w) => {
-          const t = wallThicknessUnits(w, layout);
+          const t = w.virtual ? 0.03 * m : wallThicknessUnits(w, layout);
           const sel = selWalls.has(w.id);
           return (
             <g key={w.id} className="dh-wall" onPointerDown={(e) => clickWall(e, w)}>
-              <line x1={w.a[0]} y1={w.a[1]} x2={w.b[0]} y2={w.b[1]} stroke={sel ? "#2563eb" : w.exterior ? "#374151" : "#6b7280"} strokeWidth={t} strokeLinecap={w.exterior ? "square" : "butt"} />
+              <line x1={w.a[0]} y1={w.a[1]} x2={w.b[0]} y2={w.b[1]} stroke={sel ? "#2563eb" : w.virtual ? "#94a3b8" : w.exterior ? "#374151" : "#6b7280"} strokeWidth={t} strokeLinecap={w.exterior && !w.virtual ? "square" : "butt"} strokeDasharray={w.virtual ? `${0.15 * m} ${0.1 * m}` : undefined} />
               {/* fat invisible hit area */}
               <line x1={w.a[0]} y1={w.a[1]} x2={w.b[0]} y2={w.b[1]} stroke="transparent" strokeWidth={Math.max(t, 0.25 * m)} />
             </g>

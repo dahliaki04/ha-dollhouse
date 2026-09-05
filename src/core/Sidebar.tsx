@@ -7,7 +7,7 @@ import type { Mount } from "../domain/types";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 import { importBackground } from "./background";
 import { KELVIN_PRESETS, kelvinToHex, lightColor } from "./markers";
-import { addItems, applyThickness, removeItem, removeRoom, resetThickness, setBackground, updateItem, updateRoom, type Selection } from "./useEditor";
+import { addItems, applyThickness, applyVirtual, removeItem, removeRoom, resetThickness, setBackground, updateItem, updateRoom, type Selection } from "./useEditor";
 
 export interface SidebarProps {
   layout: Layout;
@@ -122,7 +122,7 @@ function LayoutPanel(p: SidebarProps) {
           <NumberField label="牆高 (m)" value={layout.wallDefaults.height} step={0.1} onChange={(v) => p.onCommit({ ...layout, wallDefaults: { ...layout.wallDefaults, height: v } })} />
         </div>
         <WallQuickSelect walls={walls} onSelect={p.onSelect} />
-        <div className="dh-muted" style={{ marginTop: 4 }}>{walls.length} 面牆，{Object.keys(layout.wallThickness).length} 面自訂厚度</div>
+        <div className="dh-muted" style={{ marginTop: 4 }}>{walls.length} 面牆，{Object.keys(layout.wallThickness).length} 面自訂厚度，{walls.filter((w) => w.virtual).length} 面虛擬</div>
       </section>
 
       <section>
@@ -174,6 +174,7 @@ function WallQuickSelect({ walls, onSelect }: { walls: Wall[]; onSelect: (s: Sel
       <button className="dh-btn small" disabled={!walls.length} onClick={() => pick(() => true)}>全選牆</button>
       <button className="dh-btn small" disabled={!walls.length} onClick={() => pick((w) => w.exterior)}>全部外牆</button>
       <button className="dh-btn small" disabled={!walls.length} onClick={() => pick((w) => !w.exterior)}>全部內牆</button>
+      {walls.some((w) => w.virtual) && <button className="dh-btn small" onClick={() => pick((w) => w.virtual)}>全部虛擬</button>}
     </div>
   );
 }
@@ -187,11 +188,20 @@ function WallPanel(p: SidebarProps & { selected: Wall[] }) {
   const [cm, setCm] = useState(() => Math.round(first * 100));
   const ids = selected.map((w) => w.id);
   const ext = selected.filter((w) => w.exterior).length;
+  const virt = selected.filter((w) => w.virtual).length;
   return (
     <>
       <section>
         <h3>已選 {selected.length} 面牆</h3>
-        <div className="dh-muted">{ext} 面外牆、{selected.length - ext} 面內牆，目前厚度 {uniform ? `${Math.round(first * 100)} cm` : "不一致"}</div>
+        <div className="dh-muted">{ext} 面外牆、{selected.length - ext} 面內牆{virt ? `，${virt} 面虛擬` : ""}，目前厚度 {uniform ? `${Math.round(first * 100)} cm` : "不一致"}</div>
+        <div className="dh-field" style={{ marginTop: 8 }}>
+          <label>實牆 / 虛擬區隔</label>
+          <div className="dh-row">
+            <button className={`dh-btn small${virt === 0 ? " on" : ""}`} onClick={() => p.onCommit(applyVirtual(layout, ids, false))}>實牆</button>
+            <button className={`dh-btn small${virt === selected.length ? " on" : ""}`} onClick={() => p.onCommit(applyVirtual(layout, ids, true))}>虛擬（開放空間）</button>
+          </div>
+          <div className="dh-muted">虛擬區隔只用來分房間與 area，不畫牆。例如開放式廚房和客廳之間。</div>
+        </div>
         <div className="dh-field" style={{ marginTop: 8 }}>
           <label>設定厚度 (cm)</label>
           <div className="dh-row">

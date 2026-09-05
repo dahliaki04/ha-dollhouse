@@ -1,7 +1,7 @@
 import { useReducer } from "react";
 import type { Background, Item, Layout, Point, Room } from "../domain/types";
 import { newId } from "../domain/types";
-import { deriveWalls, pruneOverrides, setThickness } from "../domain/walls";
+import { deriveWalls, pruneOverrides, pruneVirtual, setThickness, setVirtual } from "../domain/walls";
 
 export type Selection = { kind: "room"; id: string } | { kind: "item"; id: string } | { kind: "walls"; ids: string[] } | null;
 export type Tool = "select" | "rect" | "polygon" | "scale";
@@ -67,7 +67,8 @@ export function useEditor(initial: Layout, view: View = "2d") {
 
 function withRooms(layout: Layout, rooms: Room[]): Layout {
   const next = { ...layout, rooms };
-  return { ...next, wallThickness: pruneOverrides(next, deriveWalls(next)) };
+  const walls = deriveWalls(next);
+  return { ...next, wallThickness: pruneOverrides(next, walls), wallVirtual: pruneVirtual(next, walls) };
 }
 
 export function addRoom(layout: Layout, points: Point[], name?: string): { layout: Layout; room: Room } {
@@ -107,6 +108,10 @@ export function removeItem(layout: Layout, id: string): Layout {
 
 export function applyThickness(layout: Layout, ids: string[], metres: number): Layout {
   return { ...layout, wallThickness: setThickness(layout, ids, metres) };
+}
+
+export function applyVirtual(layout: Layout, ids: string[], virtual: boolean): Layout {
+  return { ...layout, wallVirtual: setVirtual(layout, ids, virtual) };
 }
 
 export function resetThickness(layout: Layout, ids: string[]): Layout {

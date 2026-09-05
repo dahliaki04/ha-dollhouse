@@ -28,9 +28,13 @@ export function FurnitureGlyph({ f, m, selected, onPointerDown }: FurnitureGlyph
             <rect x={-W / 2} y={-D / 2} width={W} height={back} rx={0.06 * m} fill={dark} />
             <rect x={-W / 2} y={-D / 2} width={arm} height={D} rx={0.06 * m} fill={dark} />
             <rect x={W / 2 - arm} y={-D / 2} width={arm} height={D} rx={0.06 * m} fill={dark} />
-            {f.type === "sofa" && Array.from({ length: Math.max(1, Math.round((W - 2 * arm) / (0.7 * m))) }, (_, i, a) => (
-              <line key={i} x1={-W / 2 + arm + ((i + 1) * (W - 2 * arm)) / (a.length + 0)} y1={-D / 2 + back} x2={-W / 2 + arm + ((i + 1) * (W - 2 * arm)) / (a.length + 0)} y2={D / 2} stroke={dark} strokeWidth={sw} opacity={i === a.length - 1 ? 0 : 1} />
-            ))}
+            {f.type === "sofa" && (() => {
+              const seats = Math.max(1, Math.round((W - 2 * arm) / (0.7 * m)));
+              return Array.from({ length: seats - 1 }, (_, i) => {
+                const x = -W / 2 + arm + ((i + 1) * (W - 2 * arm)) / seats;
+                return <line key={i} x1={x} y1={-D / 2 + back} x2={x} y2={D / 2} stroke={dark} strokeWidth={sw} />;
+              });
+            })()}
           </>
         );
       }

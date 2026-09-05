@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { t } from "../i18n";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import type { Layout, Point } from "../domain/types";
+import type { Item, Layout, Point } from "../domain/types";
 import { deriveWalls, nearestWall } from "../domain/walls";
 import { bbox, centroid, pointInPolygon } from "../domain/geometry";
-import { effectiveBeam, effectiveHeight, hasBeam, hugsWall, resolveKind } from "../domain/entities";
+import { effectiveBeam, effectiveHeight, fixturePositions, hasBeam, hugsWall, resolveKind } from "../domain/entities";
 import { coverInward, coverView, curtainPanels, wallInward } from "../domain/covers";
 import type { HassLike } from "../ha/types";
 import { brightness01, lightColor } from "./markers";
@@ -248,7 +248,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
 
   // Floors.
   for (const room of layout.rooms) {
-    const lit = layout.items.some((i) => i.entityId.startsWith("light.") && hass.states[i.entityId]?.state === "on" && inside([i.x, i.y], room.points));
+    const lit = layout.items.some((i) => resolveKind(i, hass) === "light" && hass.states[i.entityId]?.state === "on" && inside([i.x, i.y], room.points));
     const shape = new THREE.Shape(room.points.map((p) => { const [x, z] = toM(p); return new THREE.Vector2(x, z); }));
     const geo = new THREE.ShapeGeometry(shape);
     const base = new THREE.Color(room.color ?? "#f8fafc");
@@ -319,8 +319,15 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     scene.add(g);
   }
 
-  // Items.
-  for (const item of layout.items) {
+  // Items (a repeated light becomes one pseudo-item per fixture).
+  const expanded: Item[] = [];
+  for (const it of layout.items) {
+    if (resolveKind(it, hass) === "light" && it.repeat && it.repeat.count > 1) {
+      for (const [px, py] of fixturePositions(it, layout.metresPerUnit)) expanded.push({ ...it, x: px, y: py, repeat: null });
+    } else expanded.push(it);
+  }
+  for (const item of expanded) {
+    if (resolveKind(item, hass) === "light" && item.fixture === "room") continue; // whole-room lighting: floor tint only
     const [x, z] = toM([item.x, item.y]);
     const kind = resolveKind(item, hass);
     const state = hass.states[item.entityId];

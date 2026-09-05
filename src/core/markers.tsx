@@ -2,7 +2,7 @@ import type { Item, Layout } from "../domain/types";
 import { t } from "../i18n";
 import { resolveKind } from "../domain/entities";
 import { coverInward, coverView, curtainPanels, wallInward } from "../domain/covers";
-import { effectiveBeam, hugsWall } from "../domain/entities";
+import { effectiveBeam, fixturePositions, hugsWall } from "../domain/entities";
 import { DomainGlyph, ModeGlyph } from "./glyphs";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 
@@ -80,7 +80,27 @@ export function Marker(props: MarkerProps) {
   };
   const ring = props.selected ? <circle r={0.32 * m} fill="none" stroke="#2563eb" strokeWidth={0.03 * m} strokeDasharray={`${0.06 * m} ${0.04 * m}`} /> : null;
 
-  if (kind === "light") return <g {...common}>{ring}<LightGlyph item={item} hass={hass} m={m} side={hugsWall(item, hass) ? (wallInward(layout, item).flip ? -1 : 1) : 0} beam={effectiveBeam(item, hass)} /></g>;
+  if (kind === "light") {
+    const side = hugsWall(item, hass) ? (wallInward(layout, item).flip ? -1 : 1) : 0;
+    const beam = effectiveBeam(item, hass);
+    const pts = fixturePositions(item, layout.metresPerUnit);
+    if (pts.length === 1) return <g {...common}>{ring}<LightGlyph item={item} hass={hass} m={m} side={side} beam={beam} /></g>;
+    // repeated fixtures: draw each at its own spot, rotation applied per fixture
+    const xs = pts.map((q) => q[0]);
+    const ys = pts.map((q) => q[1]);
+    const pad = 0.35 * m;
+    return (
+      <g className="dh-marker" onPointerDown={(e: React.PointerEvent) => props.onPointerDown(e, item)} style={{ cursor: "pointer" }}>
+        {props.selected && <rect x={Math.min(...xs) - pad} y={Math.min(...ys) - pad} width={Math.max(...xs) - Math.min(...xs) + 2 * pad} height={Math.max(...ys) - Math.min(...ys) + 2 * pad} rx={0.15 * m} fill="none" stroke="#2563eb" strokeWidth={0.03 * m} strokeDasharray={`${0.08 * m} ${0.05 * m}`} />}
+        {pts.map((q, i) => (
+          <g key={i} transform={`translate(${q[0]} ${q[1]}) rotate(${item.rotation ?? 0})`}>
+            <LightGlyph item={item} hass={hass} m={m} side={side} beam={beam} />
+          </g>
+        ))}
+        {props.selected && <text x={Math.max(...xs) + pad} y={Math.min(...ys) - pad + 0.2 * m} fontSize={0.18 * m} fill="#2563eb">×{pts.length}</text>}
+      </g>
+    );
+  }
   if (kind === "climate") return <g {...common}>{ring}<ClimateChip item={item} hass={hass} m={m} /></g>;
   if (kind === "presence") return <g {...common}>{ring}<PresenceDot item={item} hass={hass} m={m} /></g>;
   if (kind === "cover") return <g {...common}>{ring}<CoverGlyph item={item} hass={hass} m={m} flip={coverInward(layout, item).flip} /></g>;
@@ -97,6 +117,13 @@ function LightGlyph({ item, hass, m, side, beam }: { item: Item; hass: HassLike;
   const glow = on ? <circle r={0.55 * m} fill={color} opacity={0.18 + 0.35 * b} filter="url(#dh-glow)" /> : null;
   const fixture = item.fixture ?? "downlight";
   switch (fixture) {
+    case "room":
+      return (
+        <>
+          <circle r={0.2 * m} fill={on ? color : "#fff"} fillOpacity={on ? 0.35 : 0.6} stroke={stroke} strokeWidth={0.02 * m} strokeDasharray={`${0.06 * m} ${0.04 * m}`} />
+          <path d={`M ${-0.08 * m} ${0.02 * m} a ${0.08 * m} ${0.08 * m} 0 1 1 ${0.16 * m} 0`} fill="none" stroke={stroke} strokeWidth={0.02 * m} />
+        </>
+      );
     case "strip": {
       const L = (item.length ?? 1) * m;
       // Wall-mounted: glow spills into the room on one side; ceiling-mounted: symmetric.

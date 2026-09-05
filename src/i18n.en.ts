@@ -279,6 +279,17 @@ export const en: Record<string, string> = {
   "只顯示前 {n} 個，輸入關鍵字縮小範圍": "Showing the first {n}; type to narrow down",
   "Home Assistant area": "Home Assistant area",
 
+  // light groups
+  "整間": "Whole room",
+  "燈組（一個開關帶多顆燈）": "Light group (one switch, several fixtures)",
+  "數量": "Count",
+  "一排": "Row",
+  "格狀": "Grid",
+  "欄數": "Columns",
+  "間距 (m)": "Spacing (m)",
+  "燈本身沒有進 HA、只有 Shelly / Sonoff 的開關時，用這裡畫出實際的幾顆燈；狀態跟著這個開關。": "When the lights themselves are not in HA and only a Shelly / Sonoff switch is, draw the real fixtures here; they follow this switch.",
+  "同一個 entity 再放一顆，狀態同步": "Place another copy of the same entity; state stays in sync",
+
   // lock
   "🔒 已鎖定": "🔒 Locked",
   "🔓 鎖定": "🔓 Lock",

@@ -8,7 +8,17 @@
 
 export type Point = [number, number];
 
-export type FixtureType = "downlight" | "ceiling" | "pendant" | "wall" | "strip";
+export type FixtureType = "downlight" | "ceiling" | "pendant" | "wall" | "strip" | "room";
+
+/** One entity, many physical fixtures (a relay driving a row of downlights). */
+export interface Repeat {
+  count: number;
+  pattern: "row" | "grid";
+  /** grid columns */
+  cols?: number;
+  /** metres between fixtures */
+  spacing: number;
+}
 
 export type ItemKind = "auto" | "light" | "climate" | "presence" | "cover" | "generic";
 
@@ -48,6 +58,8 @@ export interface Item {
   z?: number | null;
   /** Light throw direction for strips and wall lamps; default depends on mount. */
   beam?: Beam | null;
+  /** Multiple fixtures driven by this one entity. */
+  repeat?: Repeat | null;
   /** Rotation in degrees, for wall lights / strips. */
   rotation?: number;
   /** Physical length in metres (strips). Default 1.0. */

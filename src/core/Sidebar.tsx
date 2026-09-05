@@ -5,6 +5,7 @@ import { coverView, guessCoverStyle } from "../domain/covers";
 import { autoPlace, defaultBeam, defaultMount, effectiveHeight, entitiesInArea, hasBeam, makeItem, mountHeight, resolveKind } from "../domain/entities";
 import type { Beam } from "../domain/types";
 import type { Mount } from "../domain/types";
+import { newId } from "../domain/types";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 import { importBackground } from "./background";
 import { KELVIN_PRESETS, kelvinToHex, lightColor } from "./markers";
@@ -38,6 +39,7 @@ const FIXTURES: { v: FixtureType; label: string }[] = [
   { v: "pendant", label: t("吊燈") },
   { v: "wall", label: t("壁燈") },
   { v: "strip", label: t("燈條") },
+  { v: "room", label: t("整間") },
 ];
 
 const KINDS: { v: ItemKind; label: string }[] = [
@@ -498,6 +500,32 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
           </>
         );
       })()}
+      {kind === "light" && item.fixture !== "room" && item.fixture !== "strip" && (() => {
+        const r = item.repeat ?? { count: 1, pattern: "row" as const, spacing: 0.8 };
+        const setR = (patch: Partial<typeof r>) => p.onCommit(updateItem(layout, item.id, { repeat: { ...r, ...patch } }));
+        return (
+          <div className="dh-field">
+            <label>{t("燈組（一個開關帶多顆燈）")}</label>
+            <div className="dh-row">
+              <span className="dh-muted">{t("數量")}</span>
+              {[1, 2, 3, 4, 6, 8].map((n) => <button key={n} className={`dh-btn small${r.count === n ? " on" : ""}`} onClick={() => setR({ count: n })}>{n}</button>)}
+              <input type="number" min={1} max={40} style={{ width: 60 }} value={r.count} onChange={(e) => { const n = Math.max(1, Math.min(40, Number(e.target.value) || 1)); setR({ count: n }); }} />
+            </div>
+            {r.count > 1 && (
+              <div className="dh-row" style={{ marginTop: 6 }}>
+                <button className={`dh-btn small${r.pattern === "row" ? " on" : ""}`} onClick={() => setR({ pattern: "row" })}>{t("一排")}</button>
+                <button className={`dh-btn small${r.pattern === "grid" ? " on" : ""}`} onClick={() => setR({ pattern: "grid", cols: r.cols ?? Math.ceil(Math.sqrt(r.count)) })}>{t("格狀")}</button>
+                {r.pattern === "grid" && <><span className="dh-muted">{t("欄數")}</span><input type="number" min={1} max={r.count} style={{ width: 56 }} value={r.cols ?? Math.ceil(Math.sqrt(r.count))} onChange={(e) => setR({ cols: Math.max(1, Number(e.target.value) || 1) })} /></>}
+                <span className="dh-muted">{t("間距 (m)")}</span>
+                <input type="number" min={0.2} max={5} step={0.1} style={{ width: 64 }} value={r.spacing} onChange={(e) => { const v = Number(e.target.value); if (v > 0) setR({ spacing: v }); }} />
+                <span className="dh-muted">{t("方向 (°)")}</span>
+                <input type="number" step={15} style={{ width: 64 }} value={item.rotation ?? 0} onChange={(e) => p.onCommit(updateItem(layout, item.id, { rotation: Number(e.target.value) || 0 }))} />
+              </div>
+            )}
+            <div className="dh-muted">{t("燈本身沒有進 HA、只有 Shelly / Sonoff 的開關時，用這裡畫出實際的幾顆燈；狀態跟著這個開關。")}</div>
+          </div>
+        );
+      })()}
       {kind === "light" && item.fixture === "strip" && (
         <div className="dh-field">
           <label>{t("燈條長度 (m)")}</label>
@@ -566,6 +594,7 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
         <span className="dh-muted">{t("位置 ({x}, {y}) m", { x: (item.x * layout.metresPerUnit).toFixed(2), y: (item.y * layout.metresPerUnit).toFixed(2) })}</span>
       </div>
       <div className="dh-row" style={{ marginTop: 10 }}>
+        <button className="dh-btn" onClick={() => { const c = { ...item, id: newId("i"), x: item.x + 0.5 / layout.metresPerUnit, y: item.y + 0.5 / layout.metresPerUnit }; p.onCommit(addItems(layout, [c])); p.onSelect({ kind: "item", id: c.id }); }} title={t("同一個 entity 再放一顆，狀態同步")}>{t("複製")}</button>
         <button className="dh-btn danger" onClick={() => { p.onCommit(removeItem(layout, item.id)); p.onSelect(null); p.onNotify?.(t("已移除裝置，可用復原鍵還原")); }}>{t("移除")}</button>
       </div>
     </section>

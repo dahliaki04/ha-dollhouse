@@ -125,6 +125,7 @@ export const FIXTURE_HEIGHT: Record<FixtureType, number> = {
   pendant: 2.0,
   wall: 1.9,
   strip: 2.6,
+  room: 2.8,
 };
 
 export function makeItem(hass: HassLike, entityId: string, x: number, y: number): Item {
@@ -178,4 +179,31 @@ const segLen = (w: Wall) => Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
 
 export function roomOfPoint(layout: Layout, p: Point): Room | undefined {
   return layout.rooms.find((r) => pointInPolygon(p, r.points));
+}
+
+/**
+ * Where each physical fixture of an item sits (canvas units). A single item
+ * returns its own position; a repeated one lays out `count` fixtures in a row
+ * along the item's rotation or in a grid, centred on the item.
+ */
+export function fixturePositions(item: Item, metresPerUnit: number): Point[] {
+  const r = item.repeat;
+  if (!r || r.count <= 1) return [[item.x, item.y]];
+  const gap = (r.spacing || 0.8) / metresPerUnit;
+  const th = ((item.rotation ?? 0) * Math.PI) / 180;
+  const ux = Math.cos(th);
+  const uy = Math.sin(th);
+  const vx = -Math.sin(th);
+  const vy = Math.cos(th);
+  const cols = r.pattern === "grid" ? Math.max(1, Math.min(r.count, r.cols ?? Math.ceil(Math.sqrt(r.count)))) : r.count;
+  const rows = Math.ceil(r.count / cols);
+  const out: Point[] = [];
+  for (let i = 0; i < r.count; i++) {
+    const c = i % cols;
+    const rr = Math.floor(i / cols);
+    const a = (c - (cols - 1) / 2) * gap;
+    const b = (rr - (rows - 1) / 2) * gap;
+    out.push([item.x + a * ux + b * vx, item.y + a * uy + b * vy]);
+  }
+  return out;
 }

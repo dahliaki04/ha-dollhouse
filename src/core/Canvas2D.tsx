@@ -8,7 +8,7 @@ import { FurnitureGlyph } from "./FurnitureGlyph";
 import type { Furniture } from "../domain/furniture";
 import { moveRoom, updateFurniture, updateItem, updateRoom, type Selection, type Tool } from "./useEditor";
 import type { HassLike } from "../ha/types";
-import { entitiesInArea, hugsWall } from "../domain/entities";
+import { entitiesInArea, hugsWall, resolveKind } from "../domain/entities";
 import { backgroundFit, detectRoom, loadGray, type Gray } from "../domain/autoroom";
 
 export interface Canvas2DProps {
@@ -418,7 +418,7 @@ export function Canvas2D(p: Canvas2DProps) {
   const roomLit = useMemo(() => {
     const out: Record<string, string | null> = {};
     for (const r of layout.rooms) {
-      const lights = layout.items.filter((i) => i.entityId.startsWith("light.") && inside([i.x, i.y], r.points) && hass.states[i.entityId]?.state === "on");
+      const lights = layout.items.filter((i) => resolveKind(i, hass) === "light" && inside([i.x, i.y], r.points) && hass.states[i.entityId]?.state === "on");
       out[r.id] = lights.length ? lightColor(hass, lights[0].entityId, lights[0].color) : null;
     }
     return out;

@@ -1,5 +1,6 @@
-import type { CoverStyle, Item } from "./types";
+import type { CoverStyle, Item, Layout, Point } from "./types";
 import type { HassLike } from "../ha/types";
+import { pointInPolygon } from "./geometry";
 
 // HA CoverEntityFeature bits
 const SUPPORT_OPEN_TILT = 16;
@@ -45,4 +46,21 @@ export function coverView(hass: HassLike, item: Item): CoverView {
     moving: state === "opening" || state === "closing",
     unknown: !s || state === "unknown" || state === "unavailable",
   };
+}
+
+/**
+ * Unit vector (canvas space) pointing from the cover into the room it belongs to.
+ * The cover sits on a wall centreline; we probe 0.4 m to each side and pick the
+ * side that lands inside a room (default: the local +y side).
+ */
+export function coverInward(layout: Layout, item: Item): { n: Point; flip: boolean } {
+  const th = ((item.rotation ?? 0) * Math.PI) / 180;
+  const n: Point = [-Math.sin(th), Math.cos(th)];
+  const probe = 0.4 / layout.metresPerUnit;
+  const plus: Point = [item.x + n[0] * probe, item.y + n[1] * probe];
+  const minus: Point = [item.x - n[0] * probe, item.y - n[1] * probe];
+  const inPlus = layout.rooms.some((r) => pointInPolygon(plus, r.points));
+  const inMinus = layout.rooms.some((r) => pointInPolygon(minus, r.points));
+  if (!inPlus && inMinus) return { n: [-n[0], -n[1]], flip: true };
+  return { n, flip: false };
 }

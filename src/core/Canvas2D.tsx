@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Item, Layout, Point, Room, Wall } from "../domain/types";
-import { bbox, dist, pointToSegment, rectToPolygon, snapToGrid } from "../domain/geometry";
-import { wallThicknessUnits } from "../domain/walls";
+import { bbox, dist, rectToPolygon, snapToGrid } from "../domain/geometry";
+import { nearestWall, wallThicknessUnits } from "../domain/walls";
 import { lightColor, Marker } from "./markers";
 import { moveRoom, updateItem, updateRoom, type Selection, type Tool } from "./useEditor";
 import type { HassLike } from "../ha/types";
@@ -180,9 +180,9 @@ export function Canvas2D(p: Canvas2DProps) {
       if (item && resolveKind(item, hass) === "cover" && !e.shiftKey) {
         // Covers live on walls: snap to the nearest wall within 0.5 m and align to it.
         const raw: Point = [drag.orig[0] + dx, drag.orig[1] + dy];
-        const w = nearestWall(walls, raw);
-        if (w) {
-          const { d, t } = pointToSegment(raw, w.a, w.b);
+        const hit = nearestWall(walls, raw);
+        if (hit) {
+          const { wall: w, d, t } = hit;
           if (d < 0.5 * m) {
             target = [w.a[0] + (w.b[0] - w.a[0]) * t, w.a[1] + (w.b[1] - w.a[1]) * t];
             patch = { rotation: Math.round((Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]) * 180) / Math.PI) };
@@ -447,13 +447,3 @@ function inside(p: Point, pts: Point[]): boolean {
   return r;
 }
 
-/** Exposed for the sidebar: which wall is nearest to a point (unused for now). */
-export function nearestWall(walls: Wall[], p: Point): Wall | undefined {
-  let best: Wall | undefined;
-  let bd = Infinity;
-  for (const w of walls) {
-    const { d } = pointToSegment(p, w.a, w.b);
-    if (d < bd) { bd = d; best = w; }
-  }
-  return best;
-}

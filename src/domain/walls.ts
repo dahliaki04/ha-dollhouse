@@ -1,5 +1,5 @@
 import type { Layout, Point, Room, Wall } from "./types";
-import { collinearOverlap, complementIntervals, lerp, mergeIntervals } from "./geometry";
+import { collinearOverlap, complementIntervals, lerp, mergeIntervals, pointToSegment } from "./geometry";
 
 /**
  * Derive walls from room polygons.
@@ -65,6 +65,16 @@ function makeWall(layout: Layout, id: string, a: Point, b: Point, exterior: bool
   const override = layout.wallThickness[id];
   const thickness = override ?? (exterior ? layout.wallDefaults.exterior : layout.wallDefaults.interior);
   return { id, a, b, exterior, rooms, thickness, overridden: override !== undefined };
+}
+
+/** Closest wall to a point, with its distance in canvas units. */
+export function nearestWall(walls: Wall[], p: Point): { wall: Wall; d: number; t: number } | undefined {
+  let best: { wall: Wall; d: number; t: number } | undefined;
+  for (const w of walls) {
+    const { d, t } = pointToSegment(p, w.a, w.b);
+    if (!best || d < best.d) best = { wall: w, d, t };
+  }
+  return best;
 }
 
 /** Wall thickness in canvas units (for rendering). */

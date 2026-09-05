@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Layout, Point } from "../domain/types";
-import { deriveWalls } from "../domain/walls";
+import { deriveWalls, nearestWall } from "../domain/walls";
 import { bbox, centroid } from "../domain/geometry";
 import { FIXTURE_HEIGHT, resolveKind } from "../domain/entities";
-import { coverView } from "../domain/covers";
+import { coverInward, coverView } from "../domain/covers";
 import type { HassLike } from "../ha/types";
 import { brightness01, lightColor } from "./markers";
 
@@ -211,10 +211,11 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     scene.add(label);
   }
 
+  const walls = deriveWalls(layout);
   // Walls.
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.9 });
   const wallMatExt = new THREE.MeshStandardMaterial({ color: 0xd9dee5, roughness: 0.9 });
-  for (const w of deriveWalls(layout)) {
+  for (const w of walls) {
     const a = toM(w.a);
     const b = toM(w.b);
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -291,8 +292,11 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       const H = 2.2; // curtain drop
       const top = 2.4;
       const rotY = THREE.MathUtils.degToRad(-(item.rotation ?? 0));
+      const inward = coverInward(layout, item);
+      const near = nearestWall(walls, [item.x, item.y]);
+      const off = (near && near.d < 0.5 / mpu ? near.wall.thickness / 2 : 0) + 0.04;
       const group = new THREE.Group();
-      group.position.set(x, 0, z);
+      group.position.set(x + inward.n[0] * off, 0, z + inward.n[1] * off);
       group.rotation.y = rotY;
       const fabric = new THREE.MeshStandardMaterial({ color: v.unknown ? 0x9ca3af : 0x64748b, side: THREE.DoubleSide, roughness: 1 });
       const glass = new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
@@ -333,7 +337,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       }
       scene.add(group);
       const sp = textSprite(`${Math.round(v.open * 100)}%`, "#0f172a", 0.6);
-      sp.position.set(x, top + 0.35, z);
+      sp.position.set(x + inward.n[0] * (off + 0.3), top + 0.35, z + inward.n[1] * (off + 0.3));
       scene.add(sp);
     } else if (kind === "presence") {
       const on = state?.state === "on";

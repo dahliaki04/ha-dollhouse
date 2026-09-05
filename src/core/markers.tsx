@@ -1,6 +1,6 @@
 import type { Item, Layout } from "../domain/types";
 import { resolveKind } from "../domain/entities";
-import { coverView } from "../domain/covers";
+import { coverInward, coverView } from "../domain/covers";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 
 export interface MarkerProps {
@@ -81,7 +81,7 @@ export function Marker(props: MarkerProps) {
   if (kind === "light") return <g {...common}>{ring}<LightGlyph item={item} hass={hass} m={m} /></g>;
   if (kind === "climate") return <g {...common}>{ring}<ClimateChip item={item} hass={hass} m={m} /></g>;
   if (kind === "presence") return <g {...common}>{ring}<PresenceDot item={item} hass={hass} m={m} /></g>;
-  if (kind === "cover") return <g {...common}>{ring}<CoverGlyph item={item} hass={hass} m={m} /></g>;
+  if (kind === "cover") return <g {...common}>{ring}<CoverGlyph item={item} hass={hass} m={m} flip={coverInward(layout, item).flip} /></g>;
   return <g {...common}>{ring}<GenericChip item={item} hass={hass} m={m} /></g>;
 }
 
@@ -174,7 +174,8 @@ function PresenceDot({ item, hass, m }: { item: Item; hass: HassLike; m: number 
 }
 
 /** Top-view cover along its wall: fabric = dark bars, open gap = light. Percent label stays upright. */
-function CoverGlyph({ item, hass, m }: { item: Item; hass: HassLike; m: number }) {
+function CoverGlyph({ item, hass, m, flip }: { item: Item; hass: HassLike; m: number; flip: boolean }) {
+  const side = flip ? -1 : 1;
   const v = coverView(hass, item);
   const L = (item.length ?? 1.5) * m;
   const t = 0.16 * m;
@@ -217,9 +218,9 @@ function CoverGlyph({ item, hass, m }: { item: Item; hass: HassLike; m: number }
   return (
     <>
       {body}
-      <g transform={`rotate(${-(item.rotation ?? 0)})`}>
-        <rect x={-0.22 * m} y={0.14 * m} width={0.44 * m} height={0.2 * m} rx={0.1 * m} fill="#fff" stroke="#94a3b8" strokeWidth={0.012 * m} />
-        <text y={0.29 * m} fontSize={0.15 * m} textAnchor="middle" fill="#0f172a">{v.moving ? "…" : pct}</text>
+      <g transform={`translate(0 ${side * 0.24 * m}) rotate(${-(item.rotation ?? 0)})`}>
+        <rect x={-0.22 * m} y={-0.1 * m} width={0.44 * m} height={0.2 * m} rx={0.1 * m} fill="#fff" stroke="#94a3b8" strokeWidth={0.012 * m} />
+        <text y={0.05 * m} fontSize={0.15 * m} textAnchor="middle" fill="#0f172a">{v.moving ? "…" : pct}</text>
       </g>
     </>
   );

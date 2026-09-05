@@ -500,7 +500,7 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
           </>
         );
       })()}
-      {kind === "light" && item.fixture !== "room" && item.fixture !== "strip" && (() => {
+      {kind === "light" && item.fixture !== "room" && (() => {
         const r = item.repeat ?? { count: 1, pattern: "row" as const, spacing: 0.8 };
         const setR = (patch: Partial<typeof r>) => p.onCommit(updateItem(layout, item.id, { repeat: { ...r, ...patch } }));
         return (
@@ -513,13 +513,13 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
                 <input type="number" min={1} max={40} style={{ width: 60 }} value={r.count} onChange={(e) => { const n = Math.max(1, Math.min(40, Number(e.target.value) || 1)); setR({ count: n }); }} />
               </div>
             )}
-            <div className="dh-row" style={{ marginTop: 6 }}>
+            {item.fixture !== "strip" && <div className="dh-row" style={{ marginTop: 6 }}>
               <button className={`dh-btn small${r.pattern === "row" ? " on" : ""}`} onClick={() => setR({ pattern: "row" })}>{t("一排")}</button>
               <button className={`dh-btn small${r.pattern === "grid" ? " on" : ""}`} onClick={() => setR({ pattern: "grid", rows: r.rows ?? 2, cols: r.cols ?? 2, count: (r.rows ?? 2) * (r.cols ?? 2) })}>{t("矩陣")}</button>
               {r.pattern === "grid" && [[2, 2], [2, 3], [3, 3], [2, 4]].map(([rr, cc]) => (
                 <button key={`${rr}x${cc}`} className={`dh-btn small${(r.rows ?? 0) === rr && (r.cols ?? 0) === cc ? " on" : ""}`} onClick={() => setR({ rows: rr, cols: cc, count: rr * cc })}>{rr}×{cc}</button>
               ))}
-            </div>
+            </div>}
             {r.pattern === "grid" && (
               <div className="dh-row" style={{ marginTop: 6 }}>
                 <span className="dh-muted">{t("列")}</span>
@@ -534,14 +534,14 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
             )}
             {(r.count > 1 || r.pattern === "grid") && (
               <div className="dh-row" style={{ marginTop: 6 }}>
-                {r.pattern === "row" && <><span className="dh-muted">{t("間距 (m)")}</span>
+                {r.pattern === "row" && <><span className="dh-muted">{item.fixture === "strip" ? t("兩條之間 (m)") : t("間距 (m)")}</span>
                 <input type="number" min={0.2} max={5} step={0.1} style={{ width: 64 }} value={r.spacing} onChange={(e) => { const v = Number(e.target.value); if (v > 0) setR({ spacing: v }); }} /></>}
                 <span className="dh-muted">{t("方向 (°)")}</span>
                 <input type="number" step={15} style={{ width: 64 }} value={item.rotation ?? 0} onChange={(e) => p.onCommit(updateItem(layout, item.id, { rotation: Number(e.target.value) || 0 }))} />
                 {[0, 90].map((v) => <button key={v} className={`dh-btn small${(item.rotation ?? 0) === v ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { rotation: v }))}>{v === 0 ? t("橫") : t("直")}</button>)}
               </div>
             )}
-            <div className="dh-muted">{t("燈本身沒有進 HA、只有 Shelly / Sonoff 的開關時，用這裡畫出實際的幾顆燈；狀態跟著這個開關。")}</div>
+            <div className="dh-muted">{item.fixture === "strip" ? t("燈條會平行並排；兩側各貼一面牆的層板燈請用「複製」，每條各自吸牆。") : t("燈本身沒有進 HA、只有 Shelly / Sonoff 的開關時，用這裡畫出實際的幾顆燈；狀態跟著這個開關。")}</div>
           </div>
         );
       })()}

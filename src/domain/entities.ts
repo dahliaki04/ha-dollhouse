@@ -196,8 +196,10 @@ export function fixturePositions(item: Item, metresPerUnit: number): Point[] {
   const uy = Math.sin(th);
   const vx = -Math.sin(th);
   const vy = Math.cos(th);
-  const cols = r.pattern === "grid" ? Math.max(1, r.cols ?? Math.ceil(Math.sqrt(r.count))) : Math.max(1, r.count);
-  const rows = r.pattern === "grid" ? Math.max(1, r.rows ?? Math.ceil(r.count / cols)) : 1;
+  // Strips are long along their rotation, so "a row of strips" stacks them side by side.
+  const sideBySide = item.fixture === "strip" && r.pattern !== "grid";
+  const cols = r.pattern === "grid" ? Math.max(1, r.cols ?? Math.ceil(Math.sqrt(r.count))) : sideBySide ? 1 : Math.max(1, r.count);
+  const rows = r.pattern === "grid" ? Math.max(1, r.rows ?? Math.ceil(r.count / cols)) : sideBySide ? Math.max(1, r.count) : 1;
   const count = r.pattern === "grid" ? rows * cols : Math.max(1, r.count);
   if (count <= 1) return [[item.x, item.y]];
   const out: Point[] = [];

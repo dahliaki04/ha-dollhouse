@@ -286,6 +286,8 @@ export const en: Record<string, string> = {
   "一排": "Row",
   "格狀": "Grid",
   "矩陣": "Matrix",
+  "兩條之間 (m)": "Between strips (m)",
+  "燈條會平行並排；兩側各貼一面牆的層板燈請用「複製」，每條各自吸牆。": "Strips stack in parallel; for cove strips on two different walls use Duplicate so each snaps to its own wall.",
   "列": "Rows",
   "欄": "Cols",
   "間距 橫 / 縱 (m)": "Spacing across / down (m)",

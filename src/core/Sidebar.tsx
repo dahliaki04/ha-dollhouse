@@ -132,6 +132,17 @@ function LayoutPanel(p: SidebarProps) {
         <div className="dh-muted" style={{ marginTop: 4 }}>{walls.length} 面牆，{Object.keys(layout.wallThickness).length} 面自訂厚度，{walls.filter((w) => w.virtual).length} 面虛擬</div>
       </section>
 
+      {(() => {
+        const dead = layout.items.filter((i) => { const st = hass.states[i.entityId]?.state; return !st || st === "unavailable" || st === "unknown"; });
+        return dead.length > 0 ? (
+          <section>
+            <h3>清理</h3>
+            <button className="dh-btn" onClick={() => p.onCommit({ ...layout, items: layout.items.filter((i) => !dead.includes(i)) })}>移除 {dead.length} 個 unavailable 的裝置</button>
+            <div className="dh-muted">狀態是 unavailable / unknown 的圖示只會疊在一起，之後自動填入也不會再加它們。</div>
+          </section>
+        ) : null;
+      })()}
+
       <section>
         <h3>3D</h3>
         <label className="dh-row" style={{ cursor: "pointer" }}>

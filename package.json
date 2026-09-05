@@ -1,6 +1,6 @@
 {
   "name": "ha-dollhouse",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Home Assistant card: draw rooms in seconds, drag entities onto a 2D/3D floor plan",
   "type": "module",
   "scripts": {

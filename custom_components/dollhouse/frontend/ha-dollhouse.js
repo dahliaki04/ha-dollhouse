@@ -11916,7 +11916,7 @@ function zx({ hass: s, layout: t, room: n, onAdd: a }) {
     ] })
   ] });
 }
-const Xb = "0.1.7", Wb = [
+const Xb = "0.1.8", Wb = [
   { v: "downlight", label: "崁燈" },
   { v: "ceiling", label: "吸頂燈" },
   { v: "pendant", label: "吊燈" },
@@ -12018,6 +12018,22 @@ function qb(s) {
         " 面虛擬"
       ] })
     ] }),
+    (() => {
+      const h = t.items.filter((g) => {
+        var y;
+        const v = (y = n.states[g.entityId]) == null ? void 0 : y.state;
+        return !v || v === "unavailable" || v === "unknown";
+      });
+      return h.length > 0 ? /* @__PURE__ */ E.jsxs("section", { children: [
+        /* @__PURE__ */ E.jsx("h3", { children: "清理" }),
+        /* @__PURE__ */ E.jsxs("button", { className: "dh-btn", onClick: () => s.onCommit({ ...t, items: t.items.filter((g) => !h.includes(g)) }), children: [
+          "移除 ",
+          h.length,
+          " 個 unavailable 的裝置"
+        ] }),
+        /* @__PURE__ */ E.jsx("div", { className: "dh-muted", children: "狀態是 unavailable / unknown 的圖示只會疊在一起，之後自動填入也不會再加它們。" })
+      ] }) : null;
+    })(),
     /* @__PURE__ */ E.jsxs("section", { children: [
       /* @__PURE__ */ E.jsx("h3", { children: "3D" }),
       /* @__PURE__ */ E.jsxs("label", { className: "dh-row", style: { cursor: "pointer" }, children: [

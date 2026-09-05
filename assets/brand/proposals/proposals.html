@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; background: #f4f5f7; font-family: "Segoe UI", system-ui, sans-serif; color: #111; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; padding: 28px; }
+  .card { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { margin: 0 0 4px; font-size: 20px; }
+  .card p { margin: 0 0 14px; color: #555; font-size: 13px; line-height: 1.5; }
+  .row { display: flex; align-items: flex-end; gap: 14px; }
+  .dark { background: #111; border-radius: 12px; padding: 12px; display: flex; gap: 14px; align-items: flex-end; margin-top: 12px; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<div class="grid">
+
+  <!-- A: isometric dollhouse on navy tile -->
+  <div class="card">
+    <h2>A · 等角娃娃屋</h2>
+    <p>深藍方塊底，3D 等角切開的屋子，一間房亮著暖光。最貼近產品本身（娃娃屋視圖）。</p>
+    <div class="row">
+      <svg id="a" viewBox="0 0 512 512" width="220" height="220">
+        <defs>
+          <linearGradient id="a-tile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1e3a8a"/><stop offset="1" stop-color="#0f172a"/></linearGradient>
+          <radialGradient id="a-glow" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#fff3c4"/><stop offset="0.5" stop-color="#fbbf24"/><stop offset="1" stop-color="#f59e0b" stop-opacity="0.9"/></radialGradient>
+        </defs>
+        <rect width="512" height="512" rx="112" fill="url(#a-tile)"/>
+        <!-- floor slab -->
+        <polygon points="256,392 96,300 256,208 416,300" fill="#334155"/>
+        <polygon points="96,300 256,392 256,420 96,328" fill="#1e293b"/>
+        <polygon points="416,300 256,392 256,420 416,328" fill="#0f172a"/>
+        <!-- back-left wall -->
+        <polygon points="96,300 96,150 256,58 256,208" fill="#94a3b8"/>
+        <!-- back-right wall -->
+        <polygon points="416,300 416,150 256,58 256,208" fill="#cbd5e1"/>
+        <!-- partition wall -->
+        <polygon points="256,208 256,58 262,61 262,211" fill="#64748b"/>
+        <polygon points="176,254 176,104 256,58 256,208" fill="#e2e8f0" opacity="0.0"/>
+        <!-- lit room floor (left half) -->
+        <polygon points="96,300 176,346 256,300 176,254" fill="url(#a-glow)"/>
+        <!-- glow on back-left wall -->
+        <polygon points="96,300 96,190 176,144 176,254" fill="#fbbf24" opacity="0.35"/>
+        <!-- window on right wall -->
+        <polygon points="330,150 330,112 370,90 370,128" fill="#7dd3fc"/>
+        <!-- roof edges -->
+        <polygon points="256,58 96,150 96,140 256,48 416,140 416,150" fill="#f8fafc"/>
+        <!-- sofa in right room -->
+        <polygon points="300,318 300,296 356,264 356,286" fill="#e2e8f0"/>
+        <polygon points="300,296 300,284 356,252 356,264" fill="#94a3b8"/>
+      </svg>
+      <svg viewBox="0 0 512 512" width="64" height="64"><use href="#a"/></svg>
+      <svg viewBox="0 0 512 512" width="32" height="32"><use href="#a"/></svg>
+    </div>
+    <div class="dark">
+      <svg viewBox="0 0 512 512" width="96" height="96"><use href="#a"/></svg>
+      <svg viewBox="0 0 512 512" width="48" height="48"><use href="#a"/></svg>
+      <svg viewBox="0 0 512 512" width="24" height="24"><use href="#a"/></svg>
+    </div>
+  </div>
+
+  <!-- B: bold house silhouette on amber tile -->
+  <div class="card">
+    <h2>B · 粗線條開口屋</h2>
+    <p>琥珀色方塊底，深藍粗線的屋子剖面，正面開口露出一顆燈。像 logo 標記，極簡但很有記憶點。</p>
+    <div class="row">
+      <svg id="b" viewBox="0 0 512 512" width="220" height="220">
+        <defs>
+          <linearGradient id="b-tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbbf24"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
+        </defs>
+        <rect width="512" height="512" rx="112" fill="url(#b-tile)"/>
+        <!-- house outline, thick stroke -->
+        <path d="M112 232 L256 108 L400 232 V400 H112 Z" fill="#0f172a"/>
+        <path d="M148 246 L256 152 L364 246 V366 H148 Z" fill="#fde68a"/>
+        <!-- floor divider -->
+        <rect x="148" y="298" width="216" height="18" fill="#0f172a"/>
+        <!-- partition -->
+        <rect x="248" y="298" width="16" height="68" fill="#0f172a"/>
+        <!-- pendant lamp in the attic room -->
+        <rect x="252" y="152" width="8" height="52" fill="#0f172a"/>
+        <path d="M222 214 L290 214 L272 240 H240 Z" fill="#0f172a"/>
+        <circle cx="256" cy="248" r="14" fill="#fff7d6"/>
+        <!-- light cone -->
+        <path d="M232 262 L280 262 L320 298 H192 Z" fill="#fff" opacity="0.55"/>
+        <!-- door -->
+        <rect x="292" y="322" width="44" height="44" rx="4" fill="#0f172a"/>
+        <!-- sofa -->
+        <rect x="166" y="336" width="66" height="22" rx="6" fill="#0f172a"/>
+      </svg>
+      <svg viewBox="0 0 512 512" width="64" height="64"><use href="#b"/></svg>
+      <svg viewBox="0 0 512 512" width="32" height="32"><use href="#b"/></svg>
+    </div>
+    <div class="dark">
+      <svg viewBox="0 0 512 512" width="96" height="96"><use href="#b"/></svg>
+      <svg viewBox="0 0 512 512" width="48" height="48"><use href="#b"/></svg>
+      <svg viewBox="0 0 512 512" width="24" height="24"><use href="#b"/></svg>
+    </div>
+  </div>
+
+  <!-- C: floor plan with glowing room on teal tile -->
+  <div class="card">
+    <h2>C · 發光平面圖</h2>
+    <p>藍綠漸層方塊底，白色粗線的平面圖，一間房整個亮起來、還有一顆燈的光暈。強調「圖面 + 燈光狀態」。</p>
+    <div class="row">
+      <svg id="c" viewBox="0 0 512 512" width="220" height="220">
+        <defs>
+          <linearGradient id="c-tile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#0f766e"/></linearGradient>
+          <radialGradient id="c-glow" cx="50%" cy="50%" r="55%"><stop offset="0" stop-color="#fff7d6"/><stop offset="0.55" stop-color="#fbbf24"/><stop offset="1" stop-color="#f59e0b"/></radialGradient>
+        </defs>
+        <rect width="512" height="512" rx="112" fill="url(#c-tile)"/>
+        <!-- plan outer -->
+        <rect x="92" y="92" width="328" height="328" rx="10" fill="none" stroke="#fff" stroke-width="26"/>
+        <!-- lit room -->
+        <rect x="105" y="105" width="150" height="180" fill="url(#c-glow)"/>
+        <circle cx="180" cy="160" r="16" fill="#fff"/>
+        <!-- interior walls -->
+        <rect x="248" y="105" width="20" height="302" fill="#fff"/>
+        <rect x="105" y="278" width="163" height="20" fill="#fff"/>
+        <rect x="258" y="250" width="149" height="20" fill="#fff"/>
+        <!-- door gaps -->
+        <rect x="248" y="180" width="20" height="44" fill="#0b8fbe"/>
+        <rect x="150" y="278" width="44" height="20" fill="#0b8fbe"/>
+        <!-- bed in bottom-right -->
+        <rect x="300" y="300" width="80" height="90" rx="10" fill="#fff" opacity="0.85"/>
+        <rect x="310" y="308" width="60" height="18" rx="6" fill="#0ea5e9"/>
+      </svg>
+      <svg viewBox="0 0 512 512" width="64" height="64"><use href="#c"/></svg>
+      <svg viewBox="0 0 512 512" width="32" height="32"><use href="#c"/></svg>
+    </div>
+    <div class="dark">
+      <svg viewBox="0 0 512 512" width="96" height="96"><use href="#c"/></svg>
+      <svg viewBox="0 0 512 512" width="48" height="48"><use href="#c"/></svg>
+      <svg viewBox="0 0 512 512" width="24" height="24"><use href="#c"/></svg>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import type { Item, Layout } from "../domain/types";
+import { t } from "../i18n";
 import { resolveKind } from "../domain/entities";
 import { coverInward, coverView, curtainPanels, wallInward } from "../domain/covers";
 import { effectiveBeam, hugsWall } from "../domain/entities";
@@ -51,11 +52,11 @@ export function kelvinToHex(kelvin: number): string {
 }
 
 export const KELVIN_PRESETS: { k: number; label: string }[] = [
-  { k: 2700, label: "2700K 暖" },
+  { k: 2700, label: t("2700K 暖") },
   { k: 3000, label: "3000K" },
-  { k: 4000, label: "4000K 自然" },
+  { k: 4000, label: t("4000K 自然") },
   { k: 5000, label: "5000K" },
-  { k: 6500, label: "6500K 冷" },
+  { k: 6500, label: t("6500K 冷") },
 ];
 
 export function brightness01(hass: HassLike, entityId: string): number {
@@ -161,7 +162,7 @@ function ClimateChip({ item, hass, m }: { item: Item; hass: HassLike; m: number 
       <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={0.12 * m} fill="#fff" stroke={color} strokeWidth={0.04 * m} />
       <g transform={`translate(${-w / 2 + 0.25 * m} 0)`}><ModeGlyph mode={mode} s={0.3 * m} color={color} /></g>
       <text x={-w / 2 + 0.42 * m} y={-0.02 * m} fontSize={fs} fill="#111" fontWeight={600}>{cur !== undefined ? `${cur.toFixed(1)}°` : "--"}</text>
-      <text x={-w / 2 + 0.42 * m} y={0.22 * m} fontSize={fs * 0.75} fill="#6b7280">{target !== undefined && mode !== "off" ? `→${target}°` : mode === "off" ? "關" : ""}</text>
+      <text x={-w / 2 + 0.42 * m} y={0.22 * m} fontSize={fs * 0.75} fill="#6b7280">{target !== undefined && mode !== "off" ? `→${target}°` : mode === "off" ? t("關") : ""}</text>
       {[0, 1, 2].map((i) => (
         <rect key={i} x={w / 2 - 0.4 * m + i * 0.1 * m} y={0.16 * m - (i + 1) * 0.09 * m} width={0.06 * m} height={(i + 1) * 0.09 * m} fill={i < fanBars ? color : "#e5e7eb"} />
       ))}
@@ -175,7 +176,7 @@ function PresenceDot({ item, hass, m }: { item: Item; hass: HassLike; m: number 
     <>
       {on && <circle r={0.3 * m} fill="#22c55e" opacity={0.25} className="dh-pulse" />}
       <circle r={0.12 * m} fill={on ? "#22c55e" : "#fff"} stroke="#15803d" strokeWidth={0.02 * m} />
-      <text y={0.04 * m} fontSize={0.14 * m} textAnchor="middle" fill={on ? "#fff" : "#15803d"}>人</text>
+      <text y={0.04 * m} fontSize={0.14 * m} textAnchor="middle" fill={on ? "#fff" : "#15803d"}>{t("人")}</text>
     </>
   );
 }

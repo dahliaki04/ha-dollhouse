@@ -3,6 +3,7 @@ import type { Background, Item, Layout, Point, Room } from "../domain/types";
 import type { Furniture } from "../domain/furniture";
 import { newId } from "../domain/types";
 import { deriveWalls, pruneOverrides, pruneVirtual, setThickness, setVirtual } from "../domain/walls";
+import { t } from "../i18n";
 
 export type Selection = { kind: "room"; id: string } | { kind: "item"; id: string } | { kind: "furniture"; id: string } | { kind: "walls"; ids: string[] } | null;
 export type Tool = "select" | "rect" | "polygon" | "magic" | "scale";
@@ -73,7 +74,7 @@ function withRooms(layout: Layout, rooms: Room[]): Layout {
 }
 
 export function addRoom(layout: Layout, points: Point[], name?: string): { layout: Layout; room: Room } {
-  const room: Room = { id: newId("r"), name: name ?? `房間 ${layout.rooms.length + 1}`, points };
+  const room: Room = { id: newId("r"), name: name ?? t("房間 {n}", { n: layout.rooms.length + 1 }), points };
   return { layout: withRooms(layout, [...layout.rooms, room]), room };
 }
 

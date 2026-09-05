@@ -7,6 +7,7 @@ import { Canvas2D } from "./Canvas2D";
 import { Sidebar, TextField } from "./Sidebar";
 import { Mark } from "./Mark";
 import { ToastBar, type Toast } from "./ui";
+import { langFromHass, onLangChange, readLangOverride, setLang, t } from "../i18n";
 import { injectStyles } from "./styles";
 import { addRoom, removeFurniture, removeItem, removeRoom, setScale, useEditor, type Tool } from "./useEditor";
 
@@ -28,6 +29,10 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [placing, setPlacing] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  // Language: manual override wins, else follow Home Assistant; re-render on change.
+  const [, langTick] = useState(0);
+  useEffect(() => onLangChange(() => langTick((n) => n + 1)), []);
+  useEffect(() => { setLang(readLangOverride() ?? langFromHass(hass.language)); }, [hass.language]);
   const [wallMulti, setWallMulti] = useState(false);
   const notify = useCallback((t: Toast | string) => setToast(typeof t === "string" ? { text: t } : t), []);
   const layoutRef = useRef(state.layout);
@@ -63,7 +68,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
         setSaveState("saved");
       } catch {
         setSaveState("error");
-        setToast({ text: "儲存失敗，請檢查連線或權限（需要管理員）", kind: "error", ttl: 6000 });
+        setToast({ text: t("儲存失敗，請檢查連線或權限（需要管理員）"), kind: "error", ttl: 6000 });
       }
     }, 800);
     return () => clearTimeout(t);
@@ -109,9 +114,9 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); dispatch({ type: "redo" }); }
       else if (e.key === "Delete" || e.key === "Backspace") {
         const sel = state.selection;
-        if (sel?.kind === "item") { commit(removeItem(state.layout, sel.id)); select(null); notify({ text: "已移除裝置", action: { label: "復原", onClick: () => dispatch({ type: "undo" }) } }); }
-        if (sel?.kind === "room") { commit(removeRoom(state.layout, sel.id)); select(null); notify({ text: "已刪除房間", action: { label: "復原", onClick: () => dispatch({ type: "undo" }) } }); }
-        if (sel?.kind === "furniture") { commit(removeFurniture(state.layout, sel.id)); select(null); notify({ text: "已刪除家具", action: { label: "復原", onClick: () => dispatch({ type: "undo" }) } }); }
+        if (sel?.kind === "item") { commit(removeItem(state.layout, sel.id)); select(null); notify({ text: t("已移除裝置"), action: { label: t("復原"), onClick: () => dispatch({ type: "undo" }) } }); }
+        if (sel?.kind === "room") { commit(removeRoom(state.layout, sel.id)); select(null); notify({ text: t("已刪除房間"), action: { label: t("復原"), onClick: () => dispatch({ type: "undo" }) } }); }
+        if (sel?.kind === "furniture") { commit(removeFurniture(state.layout, sel.id)); select(null); notify({ text: t("已刪除家具"), action: { label: t("復原"), onClick: () => dispatch({ type: "undo" }) } }); }
       } else if (e.key === "Escape") { select(null); setTool("select"); setPlacing(false); }
       else if (e.key === "v") setTool("select");
       else if (e.key === "r") setTool("rect");
@@ -133,7 +138,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   const onImport = async (file: File) => {
     try {
       const raw = JSON.parse(await file.text()) as Layout;
-      if (raw.version !== 1 || !Array.isArray(raw.rooms)) throw new Error("不是 Dollhouse 的 JSON");
+      if (raw.version !== 1 || !Array.isArray(raw.rooms)) throw new Error(t("不是 Dollhouse 的 JSON"));
       commit(raw);
     } catch (e) {
       notify({ text: (e as Error).message, kind: "error" });
@@ -141,7 +146,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   };
 
   const toolBtn = (tool: Tool, label: string, key: string) => (
-    <button className={`dh-btn${state.tool === tool ? " on" : ""}`} title={`快捷鍵 ${key}`} onClick={() => setTool(tool)}>{label}</button>
+    <button className={`dh-btn${state.tool === tool ? " on" : ""}`} title={t("快捷鍵 {key}", { key })} onClick={() => setTool(tool)}>{label}</button>
   );
 
   return (
@@ -149,16 +154,16 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
       <div className="dh-toolbar">
         <span className="dh-title" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Mark /> Dollhouse</span>
         <span className="dh-name" style={{ width: 200 }}><TextField label="" value={state.layout.name} onSave={(v) => commit({ ...state.layout, name: v })} /></span>
-        {toolBtn("select", "選取", "V")}
-        {toolBtn("rect", "矩形房間", "R")}
-        {toolBtn("polygon", "多邊形房間", "P")}
-        <button className={`dh-btn${state.tool === "magic" ? " on" : ""}`} disabled={!state.layout.background} title={state.layout.background ? "點底圖上的房間內部，自動框出" : "先上傳底圖"} onClick={() => setTool("magic")}>點選房間</button>
-        <button className="dh-btn" aria-label="復原" title="復原 (Ctrl+Z)" disabled={!state.past.length} onClick={() => dispatch({ type: "undo" })}>↶</button>
-        <button className="dh-btn" aria-label="重做" title="重做 (Ctrl+Y)" disabled={!state.future.length} onClick={() => dispatch({ type: "redo" })}>↷</button>
+        {toolBtn("select", t("選取"), "V")}
+        {toolBtn("rect", t("矩形房間"), "R")}
+        {toolBtn("polygon", t("多邊形房間"), "P")}
+        <button className={`dh-btn${state.tool === "magic" ? " on" : ""}`} disabled={!state.layout.background} title={state.layout.background ? t("點底圖上的房間內部，自動框出") : t("先上傳底圖")} onClick={() => setTool("magic")}>{t("點選房間")}</button>
+        <button className="dh-btn" aria-label={t("復原")} title={t("復原 (Ctrl+Z)")} disabled={!state.past.length} onClick={() => dispatch({ type: "undo" })}>↶</button>
+        <button className="dh-btn" aria-label={t("重做")} title={t("重做 (Ctrl+Y)")} disabled={!state.future.length} onClick={() => dispatch({ type: "redo" })}>↷</button>
         <button className={`dh-btn${state.view === "2d" ? " on" : ""}`} onClick={() => dispatch({ type: "view", view: "2d" })}>2D</button>
         <button className={`dh-btn${state.view === "3d" ? " on" : ""}`} disabled={!render3D} onClick={() => dispatch({ type: "view", view: "3d" })}>3D</button>
         <span className="dh-spacer" />
-        <span className="dh-muted dh-save">{saveState === "saving" ? "儲存中…" : saveState === "error" ? "儲存失敗" : state.dirty ? "未儲存" : loaded ? "已儲存" : ""}</span>
+        <span className="dh-muted dh-save">{saveState === "saving" ? t("儲存中…") : saveState === "error" ? t("儲存失敗") : state.dirty ? t("未儲存") : loaded ? t("已儲存") : ""}</span>
       </div>
       <div className="dh-body" ref={bodyRef} style={{ position: "relative" }}>
         {state.view === "2d" || !render3D ? (

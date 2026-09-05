@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { t } from "../i18n";
 
 /* ---------- collapsible sidebar section (open state remembered per section) ---------- */
 
@@ -42,7 +43,7 @@ export function Section({ id, title, defaultOpen = false, badge, children }: { i
 export function PanelHeader({ title, subtitle, onBack }: { title: string; subtitle?: string; onBack: () => void }) {
   return (
     <div className="dh-panel-head">
-      <button type="button" className="dh-btn small" onClick={onBack} aria-label="返回">← 返回</button>
+      <button type="button" className="dh-btn small" onClick={onBack} aria-label={t("返回")}>{t("← 返回")}</button>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
         {subtitle && <div className="dh-muted" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{subtitle}</div>}

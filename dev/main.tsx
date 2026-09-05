@@ -4,6 +4,7 @@ import { App } from "../src/core/App";
 import { createLocalStore, createMockHass } from "../src/ha/mock";
 import { demoLayout } from "../src/ha/demo";
 import { render3D } from "../src/core/lazy3d";
+import { writeLangOverride } from "../src/i18n";
 import { importBackground } from "../src/core/background";
 import { setBackground } from "../src/core/useEditor";
 import { emptyLayout } from "../src/domain/types";
@@ -27,6 +28,7 @@ function Root() {
 async function boot() {
   // ?demo seeds the store with a ready-made apartment (use ?demo=reset to overwrite).
   const q = new URLSearchParams(location.search);
+  if (q.get("lang") === "en" || q.get("lang") === "zh-Hant") writeLangOverride(q.get("lang") as "en" | "zh-Hant");
   const seed = createMockHass(() => {});
   if (q.has("plan")) {
     // Blank layout with a synthetic scanned plan as background (for the click-to-detect tool).

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { t } from "../i18n";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Layout, Point } from "../domain/types";
@@ -34,7 +35,7 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     } catch (e) {
-      setFatal(`這個瀏覽器無法建立 WebGL：${(e as Error).message}`);
+      setFatal(t("這個瀏覽器無法建立 WebGL：{msg}", { msg: (e as Error).message }));
       return;
     }
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
@@ -78,7 +79,7 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
       buildScene(t.scene, layout, hass);
       frame();
     } catch (e) {
-      setFatal(`3D 場景建立失敗：${(e as Error).message}`);
+      setFatal(t("3D 場景建立失敗：{msg}", { msg: (e as Error).message }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, hass.states]);
@@ -149,19 +150,19 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
   return (
     <div ref={mount} style={{ position: "absolute", inset: 0, background: "linear-gradient(#e5e7eb,#f3f4f6)", touchAction: "none" }}>
       <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
-        <button className="dh-btn" onClick={() => turn(-1)}>⟲ 轉</button>
-        <button className="dh-btn" onClick={() => turn(1)}>轉 ⟳</button>
-        <button className="dh-btn" onClick={() => zoomBy(1.25)}>＋</button>
-        <button className="dh-btn" onClick={() => zoomBy(1 / 1.25)}>－</button>
-        <button className="dh-btn" onClick={() => { const t = three.current; if (t) { t.camera.zoom = 1; t.camera.updateProjectionMatrix(); } placeCamera(0); }}>重置</button>
+        <button className="dh-btn" onClick={() => turn(-1)}>{t("⟲ 轉")}</button>
+        <button className="dh-btn" onClick={() => turn(1)}>{t("轉 ⟳")}</button>
+        <button className="dh-btn" onClick={() => zoomBy(1.25)}>{t("＋")}</button>
+        <button className="dh-btn" onClick={() => zoomBy(1 / 1.25)}>{t("－")}</button>
+        <button className="dh-btn" onClick={() => { const t = three.current; if (t) { t.camera.zoom = 1; t.camera.updateProjectionMatrix(); } placeCamera(0); }}>{t("重置")}</button>
       </div>
-      <div className="dh-hint">拖曳旋轉，滾輪或雙指縮放，右鍵或雙指拖曳平移。狀態即時更新。</div>
+      <div className="dh-hint">{t("拖曳旋轉，滾輪或雙指縮放，右鍵或雙指拖曳平移。狀態即時更新。")}</div>
       {fatal && (
         <div className="dh-empty" style={{ pointerEvents: "auto" }}>
           <div>
-            <b>3D 無法顯示</b><br />{fatal}<br />
-            <span className="dh-muted">HA 手機 App 的內建瀏覽器有時會關閉 WebGL。</span><br />
-            <button className="dh-btn" style={{ marginTop: 8 }} onClick={() => window.open(location.href, "_blank")}>在瀏覽器開啟</button>
+            <b>{t("3D 無法顯示")}</b><br />{fatal}<br />
+            <span className="dh-muted">{t("HA 手機 App 的內建瀏覽器有時會關閉 WebGL。")}</span><br />
+            <button className="dh-btn" style={{ marginTop: 8 }} onClick={() => window.open(location.href, "_blank")}>{t("在瀏覽器開啟")}</button>
           </div>
         </div>
       )}
@@ -438,7 +439,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       }
       const cur = state?.attributes.current_temperature as number | undefined;
       const target = state?.attributes.temperature as number | undefined;
-      const txt = mode === "off" ? `${cur?.toFixed(1) ?? "--"}° 關` : `${cur?.toFixed(1) ?? "--"}° → ${target ?? "--"}°`;
+      const txt = mode === "off" ? t("{cur}° 關", { cur: cur?.toFixed(1) ?? "--" }) : `${cur?.toFixed(1) ?? "--"}° → ${target ?? "--"}°`;
       const sp = textSprite(txt, "#111827", 0.9);
       sp.position.set(x, Math.min(ceilingH - 0.1, (yc <= 0.05 ? 1.8 : yc) + 0.45), z);
       scene.add(sp);

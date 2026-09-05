@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { t } from "../i18n";
 import type { Item, Layout, Point, Room, Wall } from "../domain/types";
 import { bbox, dist, rectToPolygon, snapToGrid } from "../domain/geometry";
 import { nearestWall, wallThicknessUnits } from "../domain/walls";
@@ -82,7 +83,7 @@ export function Canvas2D(p: Canvas2DProps) {
   useEffect(() => {
     if (!bgUrl || gray.current?.url === bgUrl) return;
     let alive = true;
-    loadGray(bgUrl).then((r) => { if (alive) gray.current = { url: bgUrl, ...r }; }).catch(() => setNotice("底圖讀取失敗"));
+    loadGray(bgUrl).then((r) => { if (alive) gray.current = { url: bgUrl, ...r }; }).catch(() => setNotice(t("底圖讀取失敗")));
     return () => { alive = false; };
   }, [bgUrl]);
 
@@ -104,12 +105,12 @@ export function Canvas2D(p: Canvas2DProps) {
   const magicAt = (pt: Point) => {
     const L = layoutRef.current;
     const g = gray.current;
-    if (!L.background || !g || g.url !== L.background.url) { flash("底圖還在讀取，再點一次"); return; }
+    if (!L.background || !g || g.url !== L.background.url) { flash(t("底圖還在讀取，再點一次")); return; }
     const fit = backgroundFit(L.canvas, L.background);
     const ix = ((pt[0] - fit.offX) / fit.s) * g.k;
     const iy = ((pt[1] - fit.offY) / fit.s) * g.k;
     const r = detectRoom(g.gray, ix, iy);
-    if (!r) { flash("這裡沒有封閉的區域，改用矩形或多邊形"); return; }
+    if (!r) { flash(t("這裡沒有封閉的區域，改用矩形或多邊形")); return; }
     const toCanvasPt = (p: Point): Point => [(p[0] / g.k) * fit.s + fit.offX, (p[1] / g.k) * fit.s + fit.offY];
     // Snap to existing rooms' vertices (not the grid) so shared walls line up exactly.
     const pts = r.points.map(toCanvasPt).map((q) => snap(q, undefined, false, 0.3));
@@ -460,7 +461,7 @@ export function Canvas2D(p: Canvas2DProps) {
                 onPointerDown={(e) => startRoomDrag(e, r)}
               />
               <text className="dh-room-label" x={c[0]} y={c[1]} fontSize={0.32 * m} textAnchor="start" fill="#1f2937">{r.name}</text>
-              {areaName && <text className="dh-room-label" x={c[0]} y={c[1] + 0.28 * m} fontSize={0.18 * m} textAnchor="start" fill="#6b7280">{areaName !== r.name ? areaName : `${entitiesInArea(hass, r.areaId!).length} 個裝置`}</text>}
+              {areaName && <text className="dh-room-label" x={c[0]} y={c[1] + 0.28 * m} fontSize={0.18 * m} textAnchor="start" fill="#6b7280">{areaName !== r.name ? areaName : t("{n} 個裝置", { n: entitiesInArea(hass, r.areaId!).length })}</text>}
             </g>
           );
         })}
@@ -521,9 +522,9 @@ export function Canvas2D(p: Canvas2DProps) {
         )}
       </svg>
       {layout.rooms.length === 0 && tool === "select" && (
-        <div className="dh-empty"><div><b>從畫房間開始</b><br />上方選「矩形房間」，點一個角再點對角就是一間。<br />有平面圖的話先上傳底圖，再用「點選房間」點房間內部自動框出。</div></div>
+        <div className="dh-empty"><div><b>{t("從畫房間開始")}</b><br />{t("上方選「矩形房間」，點一個角再點對角就是一間。")}<br />{t("有平面圖的話先上傳底圖，再用「點選房間」點房間內部自動框出。")}</div></div>
       )}
-      <div className="dh-hint">{notice ?? (p.placing ? "點畫布上的位置，把選取的物件移過去" : hint(tool, poly.length, scalePts.length, !!rectStart))}</div>
+      <div className="dh-hint">{notice ?? (p.placing ? t("點畫布上的位置，把選取的物件移過去") : hint(tool, poly.length, scalePts.length, !!rectStart))}</div>
     </div>
   );
 }
@@ -535,11 +536,11 @@ function DimLabel({ a, b, m }: { a: Point; b: Point; m: number }) {
 }
 
 function hint(tool: Tool, polyN: number, scaleN: number, rectPending = false): string {
-  if (tool === "magic") return "點底圖上房間的內部，自動框出封閉區域";
-  if (tool === "rect") return rectPending ? "再點對角的角落完成" : "點一個角、再點對角；或直接拖出矩形";
-  if (tool === "polygon") return polyN === 0 ? "逐點點出房間輪廓，點回起點或按 Enter 完成，Esc 取消" : `已 ${polyN} 點，點回起點或 Enter 完成`;
-  if (tool === "scale") return scaleN === 0 ? "點兩個已知距離的點（例如一面牆的兩端）" : "點第二個點";
-  return "拖曳裝置或房間；點牆可選取；滾輪或雙指縮放";
+  if (tool === "magic") return t("點底圖上房間的內部，自動框出封閉區域");
+  if (tool === "rect") return rectPending ? t("再點對角的角落完成") : t("點一個角、再點對角；或直接拖出矩形");
+  if (tool === "polygon") return polyN === 0 ? t("逐點點出房間輪廓，點回起點或按 Enter 完成，Esc 取消") : t("已 {n} 點，點回起點或 Enter 完成", { n: polyN });
+  if (tool === "scale") return scaleN === 0 ? t("點兩個已知距離的點（例如一面牆的兩端）") : t("點第二個點");
+  return t("拖曳裝置或房間；點牆可選取；滾輪或雙指縮放");
 }
 
 /** ViewBox that shows the whole canvas and has exactly the container's aspect ratio. */

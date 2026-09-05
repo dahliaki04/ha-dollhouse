@@ -1,4 +1,5 @@
 import { Component, lazy, Suspense, type ReactNode } from "react";
+import { t } from "../i18n";
 import type { Layout } from "../domain/types";
 import type { HassLike } from "../ha/types";
 
@@ -10,7 +11,7 @@ class Boundary extends Component<{ children: ReactNode }, { error: string | null
     return { error: e.message };
   }
   render() {
-    if (this.state.error) return <div className="dh-empty"><div><b>3D 無法顯示</b><br />{this.state.error}</div></div>;
+    if (this.state.error) return <div className="dh-empty"><div><b>{t("3D 無法顯示")}</b><br />{this.state.error}</div></div>;
     return this.props.children;
   }
 }
@@ -19,7 +20,7 @@ class Boundary extends Component<{ children: ReactNode }, { error: string | null
 export function render3D(props: { layout: Layout; hass: HassLike }) {
   return (
     <Boundary>
-      <Suspense fallback={<div className="dh-hint">載入 3D…</div>}>
+      <Suspense fallback={<div className="dh-hint">{t("載入 3D…")}</div>}>
         <Canvas3D {...props} />
       </Suspense>
     </Boundary>

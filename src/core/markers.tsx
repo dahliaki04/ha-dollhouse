@@ -10,16 +10,50 @@ export interface MarkerProps {
   onPointerDown: (e: React.PointerEvent, item: Item) => void;
 }
 
-/** Colour of a light when on, from rgb_color / color_temp, else warm white. */
-export function lightColor(hass: HassLike, entityId: string): string {
+/**
+ * Colour of a light when on. Priority: user override → HA rgb_color (colour-temp
+ * lights are blended toward white so 2700K reads as warm white, not orange) →
+ * color_temp_kelvin → default warm white.
+ */
+export function lightColor(hass: HassLike, entityId: string, override?: string | null): string {
   const s = hass.states[entityId];
   if (!s || s.state !== "on") return "#b8bcc2";
+  if (override) return override;
+  const mode = s.attributes.color_mode as string | undefined;
+  const kelvin = s.attributes.color_temp_kelvin as number | undefined;
+  if (mode === "color_temp" && kelvin) return kelvinToHex(kelvin);
   const rgb = s.attributes.rgb_color as number[] | undefined;
   if (rgb && rgb.length === 3) return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-  const kelvin = s.attributes.color_temp_kelvin as number | undefined;
-  if (kelvin && kelvin > 4500) return "#f4f7ff";
-  return "#ffcf7a";
+  if (kelvin) return kelvinToHex(kelvin);
+  return kelvinToHex(2700);
 }
+
+/** Colour temperature → display hex (Tanner Helland approximation, softened toward white). */
+export function kelvinToHex(kelvin: number): string {
+  const t = Math.min(12000, Math.max(1000, kelvin)) / 100;
+  let r: number;
+  let g: number;
+  let b: number;
+  if (t <= 66) {
+    r = 255;
+    g = 99.47 * Math.log(t) - 161.12;
+    b = t <= 19 ? 0 : 138.52 * Math.log(t - 10) - 305.04;
+  } else {
+    r = 329.7 * Math.pow(t - 60, -0.1332);
+    g = 288.12 * Math.pow(t - 60, -0.0755);
+    b = 255;
+  }
+  const soften = (v: number) => Math.round(Math.min(255, Math.max(0, v)) * 0.55 + 255 * 0.45);
+  return "#" + [r, g, b].map((v) => soften(v).toString(16).padStart(2, "0")).join("");
+}
+
+export const KELVIN_PRESETS: { k: number; label: string }[] = [
+  { k: 2700, label: "2700K 暖" },
+  { k: 3000, label: "3000K" },
+  { k: 4000, label: "4000K 自然" },
+  { k: 5000, label: "5000K" },
+  { k: 6500, label: "6500K 冷" },
+];
 
 export function brightness01(hass: HassLike, entityId: string): number {
   const s = hass.states[entityId];
@@ -52,7 +86,7 @@ export function Marker(props: MarkerProps) {
 function LightGlyph({ item, hass, m }: { item: Item; hass: HassLike; m: number }) {
   const s = hass.states[item.entityId];
   const on = s?.state === "on";
-  const color = lightColor(hass, item.entityId);
+  const color = lightColor(hass, item.entityId, item.color);
   const b = brightness01(hass, item.entityId);
   const stroke = on ? "#6b5a2a" : "#6b7280";
   const glow = on ? <circle r={0.55 * m} fill={color} opacity={0.18 + 0.35 * b} filter="url(#dh-glow)" /> : null;

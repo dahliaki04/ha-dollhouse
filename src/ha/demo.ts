@@ -28,6 +28,8 @@ export function demoLayout(hass: HassLike): Layout {
     if (!r.areaId) continue;
     layout.items.push(...autoPlace(hass, r, entitiesInArea(hass, r.areaId), layout.items, 1.0 / layout.metresPerUnit));
   }
+  const kitchen = layout.items.find((i) => i.entityId === "light.kitchen_downlight");
+  if (kitchen) kitchen.color = "#f6f1e6"; // 4000K-ish, user-set: this light only reports on/off
   const strip = layout.items.find((i) => i.entityId === "light.living_strip");
   if (strip) Object.assign(strip, { length: 2.5, x: 3 * m, y: 0.4 * m });
   // Make the living/dining partition thinner so the override path is exercised.

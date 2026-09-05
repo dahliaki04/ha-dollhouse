@@ -50,7 +50,7 @@ export function createMockHass(onChange: () => void): HassLike {
   const st = (entity_id: string, state: string, attributes: Record<string, unknown>): HassEntityState => ({ entity_id, state, attributes });
   const states: Record<string, HassEntityState> = Object.fromEntries(
     [
-      st("light.living_downlight_1", "on", { friendly_name: "客廳崁燈 1", brightness: 200, color_mode: "color_temp", supported_color_modes: ["color_temp"] }),
+      st("light.living_downlight_1", "on", { friendly_name: "客廳崁燈 1", brightness: 200, color_mode: "color_temp", color_temp_kelvin: 2700, rgb_color: [255, 169, 87], supported_color_modes: ["color_temp"] }),
       st("light.living_downlight_2", "off", { friendly_name: "客廳崁燈 2", supported_color_modes: ["color_temp"] }),
       st("light.hue_go_1", "on", { friendly_name: "Hue Go", brightness: 120, rgb_color: [255, 120, 60], supported_color_modes: ["hs"] }),
       st("light.living_strip", "on", { friendly_name: "客廳燈條", brightness: 90, rgb_color: [80, 160, 255], supported_color_modes: ["rgb"] }),
@@ -58,7 +58,7 @@ export function createMockHass(onChange: () => void): HassLike {
       st("light.master_ceiling", "off", { friendly_name: "主臥吸頂燈" }),
       st("light.master_wall_lamp", "on", { friendly_name: "主臥壁燈", brightness: 60 }),
       st("light.kid_ceiling", "on", { friendly_name: "果的房間燈", brightness: 255 }),
-      st("light.kitchen_downlight", "off", { friendly_name: "廚房崁燈" }),
+      st("light.kitchen_downlight", "on", { friendly_name: "廚房崁燈 (Shelly)" }),
       st("light.entrance_lights", "off", { friendly_name: "玄關燈" }),
       st("climate.daikin_living", "cool", { friendly_name: "客廳冷氣", current_temperature: 27.5, temperature: 25, fan_mode: "auto", hvac_modes: ["off", "cool", "heat", "dry", "fan_only"], fan_modes: ["auto", "low", "medium", "high"] }),
       st("climate.daikin_master", "off", { friendly_name: "主臥冷氣", current_temperature: 26.1, temperature: 24, fan_mode: "low", hvac_modes: ["off", "cool", "heat"], fan_modes: ["auto", "low", "medium", "high"] }),

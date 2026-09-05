@@ -36,6 +36,8 @@ export interface Item {
   rotation?: number;
   /** Physical length in metres (strips). Default 1.0. */
   length?: number;
+  /** User colour override (#rrggbb). Wins over HA-reported colour; for on/off-only lights (Shelly, Sonoff). */
+  color?: string | null;
   kind: ItemKind;
   fixture?: FixtureType;
   /** For generic items: which attribute to show instead of state. */

@@ -283,7 +283,7 @@ export function Canvas2D(p: Canvas2DProps) {
     const out: Record<string, string | null> = {};
     for (const r of layout.rooms) {
       const lights = layout.items.filter((i) => i.entityId.startsWith("light.") && inside([i.x, i.y], r.points) && hass.states[i.entityId]?.state === "on");
-      out[r.id] = lights.length ? lightColor(hass, lights[0].entityId) : null;
+      out[r.id] = lights.length ? lightColor(hass, lights[0].entityId, lights[0].color) : null;
     }
     return out;
   }, [layout.rooms, layout.items, hass.states, hass]);

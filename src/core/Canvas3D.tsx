@@ -235,7 +235,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     const state = hass.states[item.entityId];
     if (kind === "light") {
       const on = state?.state === "on";
-      const color = new THREE.Color(on ? lightColor(hass, item.entityId) : "#9ca3af");
+      const color = new THREE.Color(on ? lightColor(hass, item.entityId, item.color) : "#9ca3af");
       const fixture = item.fixture ?? "downlight";
       const y = item.z ?? FIXTURE_HEIGHT[fixture];
       const bright = brightness01(hass, item.entityId);

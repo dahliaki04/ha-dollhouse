@@ -3,6 +3,7 @@ import type { FixtureType, Item, ItemKind, Layout, Wall } from "../domain/types"
 import { autoPlace, entitiesInArea, makeItem, PLACEABLE_DOMAINS, resolveKind } from "../domain/entities";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 import { importBackground } from "./background";
+import { KELVIN_PRESETS, kelvinToHex, lightColor } from "./markers";
 import { addItems, applyThickness, removeItem, removeRoom, resetThickness, setBackground, updateItem, updateRoom, type Selection } from "./useEditor";
 
 export interface SidebarProps {
@@ -295,6 +296,20 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
           <div className="dh-row">
             {FIXTURES.map((f) => <button key={f.v} className={`dh-btn small${(item.fixture ?? "downlight") === f.v ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { fixture: f.v }))}>{f.label}</button>)}
           </div>
+        </div>
+      )}
+      {kind === "light" && (
+        <div className="dh-field">
+          <label>顏色 {item.color ? "（使用者指定）" : "（跟 HA 同步）"}</label>
+          <div className="dh-row">
+            <button className={`dh-btn small${!item.color ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { color: null }))}>自動</button>
+            {KELVIN_PRESETS.map((k) => {
+              const hex = kelvinToHex(k.k);
+              return <button key={k.k} className={`dh-btn small${item.color === hex ? " on" : ""}`} style={{ background: item.color === hex ? undefined : hex }} onClick={() => p.onCommit(updateItem(layout, item.id, { color: hex }))}>{k.label}</button>;
+            })}
+            <input type="color" value={item.color ?? lightColor(hass, item.entityId) .replace(/^rgb\((\d+),(\d+),(\d+)\)$/, (_m, r, g, b) => "#" + [r, g, b].map((v: string) => Number(v).toString(16).padStart(2, "0")).join(""))} onChange={(e) => p.onCommit(updateItem(layout, item.id, { color: e.target.value }))} title="自訂顏色" />
+          </div>
+          <div className="dh-muted">只有開關的燈（Shelly、Sonoff）在這裡指定色溫或顏色；有色溫或彩色的燈不設定就跟 HA 同步。</div>
         </div>
       )}
       {kind === "light" && item.fixture === "strip" && (

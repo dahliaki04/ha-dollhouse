@@ -125,7 +125,11 @@ function LayoutPanel(p: SidebarProps) {
           const items = ids.map((id, i) => makeItem(hass, id, cx + (i % 4) * step, cy + Math.floor(i / 4) * step));
           p.onCommit(addItems(layout, items));
           if (items.length === 1) p.onSelect({ kind: "item", id: items[0].id });
-        }} />
+        }} onRemove={(ids) => {
+          const set = new Set(ids);
+          p.onCommit({ ...layout, items: layout.items.filter((i) => !set.has(i.entityId)) });
+          p.onNotify?.(`已移除 ${ids.length} 個裝置，可用復原鍵還原`);
+        }} onFocus={(id) => { const it = layout.items.find((i) => i.entityId === id); if (it) p.onSelect({ kind: "item", id: it.id }); }} />
         <div className="dh-muted" style={{ marginTop: 6 }}>先選一間房間再加，會直接放進那間。</div>
       
       </Section>
@@ -363,7 +367,11 @@ function RoomPanel(p: SidebarProps & { room: Room }) {
           const items = autoPlace(hass, room, ids, layout.items, 1.0 / layout.metresPerUnit, p.walls);
           p.onCommit(addItems(layout, items));
           if (items.length === 1) p.onSelect({ kind: "item", id: items[0].id });
-        }} />
+        }} onRemove={(ids) => {
+          const set = new Set(ids);
+          p.onCommit({ ...layout, items: layout.items.filter((i) => !set.has(i.entityId)) });
+          p.onNotify?.(`已移除 ${ids.length} 個裝置，可用復原鍵還原`);
+        }} onFocus={(id) => { const it = layout.items.find((i) => i.entityId === id); if (it) p.onSelect({ kind: "item", id: it.id }); }} />
       </section>
     </>
   );

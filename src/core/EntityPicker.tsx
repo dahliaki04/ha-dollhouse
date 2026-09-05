@@ -9,6 +9,10 @@ export interface EntityPickerProps {
   /** When set, the area's entities are listed first and additions land in this room. */
   room?: Room | null;
   onAdd: (entityIds: string[]) => void;
+  /** Remove placed entities from the layout. */
+  onRemove?: (entityIds: string[]) => void;
+  /** Select a placed entity on the canvas. */
+  onFocus?: (entityId: string) => void;
 }
 
 const DOMAIN_LABEL: Record<string, string> = {
@@ -21,7 +25,7 @@ const DOMAIN_ORDER = ["light", "switch", "climate", "fan", "cover", "binary_sens
  * Search / filter / pick entities one by one, a few at a time, or a whole device.
  * Works with hundreds of entities: results are capped and grouped by device.
  */
-export function EntityPicker({ hass, layout, room, onAdd }: EntityPickerProps) {
+export function EntityPicker({ hass, layout, room, onAdd, onRemove, onFocus }: EntityPickerProps) {
   const [q, setQ] = useState("");
   const [domain, setDomain] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -86,19 +90,26 @@ export function EntityPicker({ hass, layout, room, onAdd }: EntityPickerProps) {
     if (fresh.length) onAdd(fresh);
     setChecked(new Set([...checked].filter((id) => !fresh.includes(id))));
   };
+  const removeNow = (ids: string[]) => {
+    const gone = ids.filter((id) => placed.has(id));
+    if (gone.length) onRemove?.(gone);
+    setChecked(new Set([...checked].filter((id) => !gone.includes(id))));
+  };
+  const checkedUnplaced = [...checked].filter((id) => !placed.has(id));
+  const checkedPlaced = [...checked].filter((id) => placed.has(id));
 
   const Row = ({ id }: { id: string }) => {
     const isPlaced = placed.has(id);
     const dom = domainOf(id);
     return (
       <li className={checked.has(id) ? "sel" : ""} style={{ gap: 6 }}>
-        <input type="checkbox" disabled={isPlaced} checked={checked.has(id)} onChange={() => toggle(id)} style={{ width: "auto" }} />
-        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} onClick={() => !isPlaced && toggle(id)}>
+        <input type="checkbox" checked={checked.has(id)} onChange={() => toggle(id)} style={{ width: "auto" }} aria-label={isPlaced ? "勾選以移除" : "勾選以加入"} />
+        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }} onClick={() => (isPlaced ? onFocus?.(id) : toggle(id))} title={isPlaced ? "在畫布上選取" : undefined}>
           <span className="dh-muted" style={{ marginRight: 4 }}>{DOMAIN_LABEL[dom] ?? dom}</span>
           {friendlyName(hass, id)}
           <span className="dh-muted" style={{ marginLeft: 6, fontSize: 11 }}>{id}</span>
         </span>
-        {isPlaced ? <span className="dh-muted">已放</span> : <button className="dh-btn small" onClick={() => addNow([id])}>加入</button>}
+        {isPlaced ? (onRemove ? <button className="dh-btn small danger" onClick={() => removeNow([id])}>移除</button> : <span className="dh-muted">已放</span>) : <button className="dh-btn small" onClick={() => addNow([id])}>加入</button>}
       </li>
     );
   };
@@ -114,7 +125,8 @@ export function EntityPicker({ hass, layout, room, onAdd }: EntityPickerProps) {
       </div>
       {checked.size > 0 && (
         <div className="dh-row" style={{ marginBottom: 8 }}>
-          <button className="dh-btn on" onClick={() => addNow([...checked])}>加入勾選的 {checked.size} 個</button>
+          {checkedUnplaced.length > 0 && <button className="dh-btn on" onClick={() => addNow(checkedUnplaced)}>加入勾選的 {checkedUnplaced.length} 個</button>}
+          {checkedPlaced.length > 0 && onRemove && <button className="dh-btn danger" onClick={() => removeNow(checkedPlaced)}>移除勾選的 {checkedPlaced.length} 個</button>}
           <button className="dh-btn small" onClick={() => setChecked(new Set())}>清除勾選</button>
         </div>
       )}
@@ -123,7 +135,10 @@ export function EntityPicker({ hass, layout, room, onAdd }: EntityPickerProps) {
         <>
           <div className="dh-row" style={{ justifyContent: "space-between" }}>
             <span className="dh-muted">{room.areaId ? `${hass.areas[room.areaId]?.name ?? room.areaId} 的裝置 (${areaRows.length})` : "這間房間還沒連結 area"}</span>
-            {areaRows.some((id) => !placed.has(id)) && <button className="dh-btn small" onClick={() => addNow(areaRows)}>全部加入</button>}
+            <span className="dh-row">
+              {areaRows.some((id) => !placed.has(id)) && <button className="dh-btn small" onClick={() => addNow(areaRows)}>全部加入</button>}
+              {onRemove && areaRows.some((id) => placed.has(id)) && <button className="dh-btn small danger" onClick={() => removeNow(areaRows)}>全部移除</button>}
+            </span>
           </div>
           <ul className="dh-list">{areaRows.map((id) => <Row key={id} id={id} />)}</ul>
           {!showAll && !needle && !domain && (

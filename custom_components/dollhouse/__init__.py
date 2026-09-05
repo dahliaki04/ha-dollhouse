@@ -48,6 +48,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         websocket_api.async_register_command(hass, ws_layout_save)
         hass.data[DOMAIN]["ws_registered"] = True
 
+    await _async_register_lovelace_resource(hass, f"{STATIC_URL}/{FRONTEND_FILE}?v={VERSION}")
+
     frontend.async_register_built_in_panel(
         hass,
         component_name="custom",
@@ -65,6 +67,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         },
     )
     return True
+
+
+async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> None:
+    """Add (or update) the dashboard resource so `custom:dollhouse-card` works without manual setup.
+
+    Only possible when dashboards are in storage mode; YAML-mode users add the resource by hand.
+    """
+    try:
+        lovelace = hass.data.get("lovelace")
+        resources = getattr(lovelace, "resources", None)
+        if resources is None and isinstance(lovelace, dict):
+            resources = lovelace.get("resources")
+        if resources is None or not hasattr(resources, "async_items"):
+            return
+        if hasattr(resources, "loaded") and not resources.loaded:
+            await resources.async_load()
+        for item in resources.async_items():
+            if str(item.get("url", "")).startswith(STATIC_URL):
+                if item.get("url") != url:
+                    await resources.async_update_item(item["id"], {"url": url})
+                return
+        await resources.async_create_item({"res_type": "module", "url": url})
+    except Exception as err:  # noqa: BLE001 — never block setup on this
+        _LOGGER.warning("Could not register the Dollhouse dashboard resource automatically: %s", err)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

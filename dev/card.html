@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dollhouse card test</title>
+    <style>
+      body { margin: 0; padding: 24px; background: #fafafa; font-family: system-ui, sans-serif; }
+      :root { --ha-card-border-radius: 12px; --card-background-color: #fff; --divider-color: #e0e0e0; --primary-text-color: #212121; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1100px; }
+    </style>
+  </head>
+  <body>
+    <div class="grid" id="grid"></div>
+    <script type="module" src="./card-test.tsx"></script>
+  </body>
+</html>

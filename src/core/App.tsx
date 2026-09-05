@@ -7,6 +7,7 @@ import { Canvas2D } from "./Canvas2D";
 import { Sidebar, TextField } from "./Sidebar";
 import { Mark } from "./Mark";
 import { ToastBar, type Toast } from "./ui";
+import { Viewer } from "./Viewer";
 import { langFromHass, onLangChange, readLangOverride, setLang, t } from "../i18n";
 import { injectStyles } from "./styles";
 import { addRoom, removeFurniture, removeItem, removeRoom, setScale, useEditor, type Tool } from "./useEditor";
@@ -34,6 +35,9 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   useEffect(() => onLangChange(() => langTick((n) => n + 1)), []);
   useEffect(() => { setLang(readLangOverride() ?? langFromHass(hass.language)); }, [hass.language]);
   const [wallMulti, setWallMulti] = useState(false);
+  // Edit vs view mode. Remembered per device; first run with no rooms starts in edit mode.
+  const [mode, setModeState] = useState<"edit" | "view">(() => { try { return (localStorage.getItem("dollhouse:mode") as "edit" | "view") || "view"; } catch { return "view"; } });
+  const setMode = (m: "edit" | "view") => { setModeState(m); try { localStorage.setItem("dollhouse:mode", m); } catch { /* ignore */ } };
   const notify = useCallback((t: Toast | string) => setToast(typeof t === "string" ? { text: t } : t), []);
   const layoutRef = useRef(state.layout);
   layoutRef.current = state.layout;
@@ -52,6 +56,8 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
     store.load().then((raw) => {
       if (!alive) return;
       if (raw && typeof raw === "object" && (raw as Layout).version === 1) dispatch({ type: "load", layout: raw as Layout });
+      else setModeState("edit");
+      if (raw && (raw as Layout).rooms?.length === 0) setModeState("edit");
       setLoaded(true);
     });
     return () => { alive = false; };
@@ -110,6 +116,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
       const real = (e.composedPath?.()[0] ?? e.target) as HTMLElement | null;
       const tag = real?.tagName;
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || real?.isContentEditable) return;
+      if (mode !== "edit") return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); dispatch({ type: e.shiftKey ? "redo" : "undo" }); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); dispatch({ type: "redo" }); }
       else if (e.key === "Delete" || e.key === "Backspace") {
@@ -149,6 +156,25 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
     <button className={`dh-btn${state.tool === tool ? " on" : ""}`} title={t("快捷鍵 {key}", { key })} onClick={() => setTool(tool)}>{label}</button>
   );
 
+  if (mode === "view" && loaded) {
+    return (
+      <div className="dh-app dh-app-view" ref={rootRef}>
+        <div className="dh-body" style={{ position: "relative" }}>
+          <Viewer
+            layout={state.layout}
+            hass={hass}
+            view={state.view === "3d" && render3D ? "3d" : "2d"}
+            onViewChange={(v) => dispatch({ type: "view", view: v })}
+            toggle={!!render3D}
+            onMoreInfo={onMoreInfo}
+            extra={<button className="dh-btn" onClick={() => setMode("edit")}>{t("編輯")}</button>}
+          />
+          <ToastBar toast={toast} onDone={() => setToast(null)} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dh-app" ref={rootRef}>
       <div className="dh-toolbar">
@@ -162,6 +188,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
         <button className="dh-btn" aria-label={t("重做")} title={t("重做 (Ctrl+Y)")} disabled={!state.future.length} onClick={() => dispatch({ type: "redo" })}>↷</button>
         <button className={`dh-btn${state.view === "2d" ? " on" : ""}`} onClick={() => dispatch({ type: "view", view: "2d" })}>2D</button>
         <button className={`dh-btn${state.view === "3d" ? " on" : ""}`} disabled={!render3D} onClick={() => dispatch({ type: "view", view: "3d" })}>3D</button>
+        <button className="dh-btn" onClick={() => setMode("view")} disabled={state.layout.rooms.length === 0} title={t("切換到檢視模式")}>{t("完成")}</button>
         <span className="dh-spacer" />
         <span className="dh-muted dh-save">{saveState === "saving" ? t("儲存中…") : saveState === "error" ? t("儲存失敗") : state.dirty ? t("未儲存") : loaded ? t("已儲存") : ""}</span>
       </div>

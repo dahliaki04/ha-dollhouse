@@ -13,6 +13,22 @@ Draw your home in minutes, drag your Home Assistant entities onto it, and see it
 - **2D and 3D share one model.** The dollhouse view is an isometric orthographic camera with four fixed directions.
 - **Live.** Tap a light to toggle it; double-tap for more-info. State changes render immediately.
 
+## Daily use: view mode and the dashboard card
+
+- In the panel, **完成 / Done** switches to view mode: full-bleed plan or dollhouse, tap an icon to toggle it, long-press for more-info, nothing can be moved by accident. **編輯 / Edit** goes back.
+- Put the same view on any dashboard with the card (the resource is registered automatically when dashboards are in storage mode):
+
+```yaml
+type: custom:dollhouse-card
+view: 3d          # 2d | 3d
+height: 420       # px
+rooms: [客廳, 餐廳]  # optional: only these rooms (names or ids)
+toggle: true      # show the 2D/3D switch
+title: 我家
+```
+
+If your dashboards are in YAML mode, add `/dollhouse_static/ha-dollhouse.js` as a module resource yourself.
+
 ## Install (HACS)
 
 1. HACS → Integrations → ⋮ → *Custom repositories* → add this repo as **Integration**.

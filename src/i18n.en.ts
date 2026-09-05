@@ -279,6 +279,12 @@ export const en: Record<string, string> = {
   "只顯示前 {n} 個，輸入關鍵字縮小範圍": "Showing the first {n}; type to narrow down",
   "Home Assistant area": "Home Assistant area",
 
+  // view mode / card
+  "編輯": "Edit",
+  "完成": "Done",
+  "切換到檢視模式": "Switch to view mode",
+  "點一下切換開關，長按開啟詳細資訊": "Tap to toggle, long-press for details",
+
   // misc
   "房間 {n}": "Room {n}",
   "語言": "Language",

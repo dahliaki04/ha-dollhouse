@@ -29,6 +29,8 @@ export interface Canvas2DProps {
   onPlaced?: () => void;
   /** Touch-friendly multi-select for walls (acts like holding Shift). */
   wallMulti?: boolean;
+  /** View mode: no editing; tap = onTap, long-press = onDoubleTap; pan/zoom still work. */
+  readOnly?: boolean;
 }
 
 interface ViewBox { x: number; y: number; w: number; h: number }
@@ -45,7 +47,7 @@ type Drag =
 export function Canvas2D(p: Canvas2DProps) {
   const { layout, hass, walls, selection, tool } = p;
   const svgRef = useRef<SVGSVGElement>(null);
-  const [vb, setVb] = useState<ViewBox>(() => fitView(layout, 1.5));
+  const [vb, setVb] = useState<ViewBox>(() => fitView(layout, 1.5, !!p.readOnly));
   const [drag, setDrag] = useState<Drag | null>(null);
   const [poly, setPoly] = useState<Point[]>([]);
   const [hover, setHover] = useState<Point | null>(null);
@@ -56,16 +58,17 @@ export function Canvas2D(p: Canvas2DProps) {
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
   const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const longPress = useRef<{ timer: number; fired: boolean } | null>(null);
 
   // Fit to the container's aspect ratio (so pointer→canvas mapping is exact) on mount,
   // on resize, and when the canvas size changes (new background).
-  const sizeKey = `${layout.canvas.width}x${layout.canvas.height}`;
+  const sizeKey = `${layout.canvas.width}x${layout.canvas.height}|${p.readOnly ? layout.rooms.map((r) => r.id).join(",") : ""}`;
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
     const fit = () => {
       const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) setVb(fitView(layoutRef.current, r.width / r.height));
+      if (r.width > 0 && r.height > 0) setVb(fitView(layoutRef.current, r.width / r.height, !!p.readOnly));
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -192,7 +195,7 @@ export function Canvas2D(p: Canvas2DProps) {
       return;
     }
     const onBackground = (e.target as Element) === svgRef.current || (e.target as Element).classList.contains("dh-bg");
-    if (tool === "select" && e.pointerType === "touch" && onBackground) {
+    if (tool === "select" && (e.pointerType === "touch" || p.readOnly) && onBackground) {
       p.onSelect(null);
       setDrag({ kind: "pan", start: [e.clientX, e.clientY], orig: vb });
       (e.currentTarget as Element).setPointerCapture(e.pointerId);
@@ -260,6 +263,10 @@ export function Canvas2D(p: Canvas2DProps) {
     } else if (drag.kind === "item") {
       const dx = pt[0] - drag.start[0];
       const dy = pt[1] - drag.start[1];
+      if (p.readOnly) {
+        if (Math.hypot(dx, dy) > 0.15 * m && longPress.current) { clearTimeout(longPress.current.timer); longPress.current = null; }
+        return;
+      }
       if (!drag.moved && Math.hypot(dx, dy) < 0.05 * m) return;
       let target: Point = e.shiftKey ? [drag.orig[0] + dx, drag.orig[1] + dy] : snapToGridPt([drag.orig[0] + dx, drag.orig[1] + dy], gridUnits / 5);
       const item = layoutRef.current.items.find((i) => i.id === drag.id);
@@ -317,8 +324,10 @@ export function Canvas2D(p: Canvas2DProps) {
       else if (w < 0.15 * m && h < 0.15 * m) setRectStart(drag.start); // a tap: wait for the opposite corner
     } else if (drag.kind === "item") {
       const item = layoutRef.current.items.find((i) => i.id === drag.id);
+      const lp = longPress.current;
+      if (lp) { clearTimeout(lp.timer); longPress.current = null; }
       if (drag.moved) p.onCommit(layoutRef.current);
-      else if (item) {
+      else if (item && !(lp && lp.fired)) {
         if (e.detail >= 2) p.onDoubleTap(item);
         else p.onTap(item);
       }
@@ -360,12 +369,18 @@ export function Canvas2D(p: Canvas2DProps) {
     if (tool !== "select" || e.button !== 0) return;
     e.stopPropagation();
     svgRef.current!.setPointerCapture(e.pointerId);
-    p.onSelect({ kind: "item", id: item.id });
+    if (!p.readOnly) p.onSelect({ kind: "item", id: item.id });
+    if (p.readOnly) {
+      if (longPress.current) clearTimeout(longPress.current.timer);
+      const lp = { timer: 0, fired: false };
+      lp.timer = window.setTimeout(() => { lp.fired = true; p.onDoubleTap(item); }, 550);
+      longPress.current = lp;
+    }
     setDrag({ kind: "item", id: item.id, start: toCanvas(e), orig: [item.x, item.y], moved: false });
   };
 
   const startFurnDrag = (e: React.PointerEvent, f: Furniture) => {
-    if (tool !== "select" || e.button !== 0) return;
+    if (tool !== "select" || e.button !== 0 || p.readOnly) return;
     e.stopPropagation();
     svgRef.current!.setPointerCapture(e.pointerId);
     p.onSelect({ kind: "furniture", id: f.id });
@@ -373,7 +388,7 @@ export function Canvas2D(p: Canvas2DProps) {
   };
 
   const startRoomDrag = (e: React.PointerEvent, room: Room) => {
-    if (tool !== "select" || e.button !== 0) return;
+    if (tool !== "select" || e.button !== 0 || p.readOnly) return;
     e.stopPropagation();
     svgRef.current!.setPointerCapture(e.pointerId);
     p.onSelect({ kind: "room", id: room.id });
@@ -381,14 +396,14 @@ export function Canvas2D(p: Canvas2DProps) {
   };
 
   const startVertexDrag = (e: React.PointerEvent, room: Room, index: number) => {
-    if (tool !== "select" || e.button !== 0) return;
+    if (tool !== "select" || e.button !== 0 || p.readOnly) return;
     e.stopPropagation();
     svgRef.current!.setPointerCapture(e.pointerId);
     setDrag({ kind: "vertex", id: room.id, index });
   };
 
   const clickWall = (e: React.PointerEvent, wall: Wall) => {
-    if (tool !== "select" || e.button !== 0) return;
+    if (tool !== "select" || e.button !== 0 || p.readOnly) return;
     e.stopPropagation();
     const cur = selection?.kind === "walls" ? selection.ids : [];
     if (e.shiftKey || e.ctrlKey || e.metaKey || p.wallMulti) {
@@ -412,7 +427,7 @@ export function Canvas2D(p: Canvas2DProps) {
   const cursor = tool === "select" ? (drag?.kind === "pan" ? "grabbing" : "default") : "crosshair";
 
   return (
-    <div className="dh-canvas-wrap" ref={wrapRef} style={{ minHeight: 320 }}>
+    <div className="dh-canvas-wrap" ref={wrapRef} style={p.readOnly ? { position: "absolute", inset: 0, minHeight: 0 } : { minHeight: 320 }}>
       <svg
         ref={svgRef}
         viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
@@ -440,7 +455,7 @@ export function Canvas2D(p: Canvas2DProps) {
         {layout.background && (
           <image className="dh-bg" href={layout.background.url} x={0} y={0} width={layout.canvas.width} height={layout.canvas.height} preserveAspectRatio="xMidYMid meet" opacity={layout.background.opacity ?? 0.6} />
         )}
-        {gridUnits > 0 && <rect className="dh-bg" x={0} y={0} width={layout.canvas.width} height={layout.canvas.height} fill="url(#dh-grid)" />}
+        {gridUnits > 0 && !p.readOnly && <rect className="dh-bg" x={0} y={0} width={layout.canvas.width} height={layout.canvas.height} fill="url(#dh-grid)" />}
 
         {/* rooms */}
         {layout.rooms.map((r) => {
@@ -521,10 +536,10 @@ export function Canvas2D(p: Canvas2DProps) {
           </>
         )}
       </svg>
-      {layout.rooms.length === 0 && tool === "select" && (
+      {layout.rooms.length === 0 && tool === "select" && !p.readOnly && (
         <div className="dh-empty"><div><b>{t("從畫房間開始")}</b><br />{t("上方選「矩形房間」，點一個角再點對角就是一間。")}<br />{t("有平面圖的話先上傳底圖，再用「點選房間」點房間內部自動框出。")}</div></div>
       )}
-      <div className="dh-hint">{notice ?? (p.placing ? t("點畫布上的位置，把選取的物件移過去") : hint(tool, poly.length, scalePts.length, !!rectStart))}</div>
+      {!p.readOnly && <div className="dh-hint">{notice ?? (p.placing ? t("點畫布上的位置，把選取的物件移過去") : hint(tool, poly.length, scalePts.length, !!rectStart))}</div>}
     </div>
   );
 }
@@ -544,13 +559,19 @@ function hint(tool: Tool, polyN: number, scaleN: number, rectPending = false): s
 }
 
 /** ViewBox that shows the whole canvas and has exactly the container's aspect ratio. */
-function fitView(layout: Layout, aspect: number): ViewBox {
+function fitView(layout: Layout, aspect: number, toRooms = false): ViewBox {
   const pad = 0.04;
-  const cw = layout.canvas.width * (1 + pad * 2);
-  const ch = layout.canvas.height * (1 + pad * 2);
+  let bx = 0, by = 0, bw = layout.canvas.width, bh = layout.canvas.height;
+  if (toRooms && layout.rooms.length) {
+    const b = bbox(layout.rooms.flatMap((r) => r.points));
+    const m = 0.4 / layout.metresPerUnit; // wall thickness + a little air
+    bx = b.x - m; by = b.y - m; bw = b.w + 2 * m; bh = b.h + 2 * m;
+  }
+  const cw = bw * (1 + pad * 2);
+  const ch = bh * (1 + pad * 2);
   const w = cw / ch > aspect ? cw : ch * aspect;
   const h = cw / ch > aspect ? cw / aspect : ch;
-  return { x: layout.canvas.width / 2 - w / 2, y: layout.canvas.height / 2 - h / 2, w, h };
+  return { x: bx + bw / 2 - w / 2, y: by + bh / 2 - h / 2, w, h };
 }
 
 function snapToGridPt(pt: Point, step: number): Point {

@@ -6,6 +6,7 @@
  * on each `hass` assignment.
  */
 import { createRoot, type Root } from "react-dom/client";
+import "./card";
 import { App } from "./core/App";
 import { render3D } from "./core/lazy3d";
 import type { HassLike, LayoutStore } from "./ha/types";

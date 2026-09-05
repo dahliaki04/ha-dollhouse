@@ -4,7 +4,7 @@ import { deriveWalls } from "../domain/walls";
 import { resolveKind } from "../domain/entities";
 import { domainOf, type HassLike, type LayoutStore } from "../ha/types";
 import { Canvas2D } from "./Canvas2D";
-import { Sidebar } from "./Sidebar";
+import { Sidebar, TextField } from "./Sidebar";
 import { injectStyles } from "./styles";
 import { addRoom, removeFurniture, removeItem, removeRoom, setScale, useEditor, type Tool } from "./useEditor";
 
@@ -93,8 +93,10 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   // Keyboard: delete, undo/redo, escape.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+      // Inside a shadow root e.target is retargeted to the host; composedPath() gives the real element.
+      const real = (e.composedPath?.()[0] ?? e.target) as HTMLElement | null;
+      const tag = real?.tagName;
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || real?.isContentEditable) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); dispatch({ type: e.shiftKey ? "redo" : "undo" }); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); dispatch({ type: "redo" }); }
       else if (e.key === "Delete" || e.key === "Backspace") {
@@ -138,7 +140,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
     <div className="dh-app" ref={rootRef}>
       <div className="dh-toolbar">
         <span className="dh-title">🏠 Dollhouse</span>
-        <input className="dh-btn dh-name" style={{ width: 140 }} value={state.layout.name} onChange={(e) => commit({ ...state.layout, name: e.target.value })} />
+        <span className="dh-name" style={{ width: 200 }}><TextField label="" value={state.layout.name} onSave={(v) => commit({ ...state.layout, name: v })} /></span>
         {toolBtn("select", "選取", "V")}
         {toolBtn("rect", "矩形房間", "R")}
         {toolBtn("polygon", "多邊形房間", "P")}

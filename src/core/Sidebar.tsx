@@ -263,10 +263,7 @@ function RoomPanel(p: SidebarProps & { room: Room }) {
     <>
       <section>
         <h3>房間</h3>
-        <div className="dh-field">
-          <label>名稱</label>
-          <input value={room.name} onChange={(e) => p.onCommit(updateRoom(layout, room.id, { name: e.target.value }))} />
-        </div>
+        <TextField label="名稱" value={room.name} onSave={(v) => p.onCommit(updateRoom(layout, room.id, { name: v }))} />
         <div className="dh-field">
           <label>Home Assistant area</label>
           <select value={room.areaId ?? ""} onChange={(e) => {
@@ -450,10 +447,7 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
               {attrs.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
-          <div className="dh-field">
-            <label>標籤</label>
-            <input value={item.label ?? ""} placeholder={friendlyName(hass, item.entityId)} onChange={(e) => p.onCommit(updateItem(layout, item.id, { label: e.target.value || null }))} />
-          </div>
+          <TextField label="標籤" value={item.label ?? ""} placeholder={friendlyName(hass, item.entityId)} onSave={(v) => p.onCommit(updateItem(layout, item.id, { label: v || null }))} />
         </>
       )}
       {kind !== "cover" && (() => {
@@ -517,10 +511,7 @@ function FurniturePanel(p: SidebarProps & { f: Furniture }) {
         <div className="dh-field"><label>顏色</label><input type="color" value={f.color} onChange={(e) => set({ color: e.target.value })} /></div>
         <button className="dh-btn small" style={{ marginTop: 16 }} onClick={() => set({ w: spec.w, d: spec.d, h: spec.h, color: spec.color })}>回預設尺寸</button>
       </div>
-      <div className="dh-field">
-        <label>標籤（選填）</label>
-        <input value={f.label ?? ""} placeholder={spec.label} onChange={(e) => set({ label: e.target.value || null })} />
-      </div>
+      <TextField label="標籤（選填）" value={f.label ?? ""} placeholder={spec.label} onSave={(v) => set({ label: v || null })} />
       <div className="dh-row">
         <button className={`dh-btn small${p.placing ? " on" : ""}`} onClick={() => p.onPlacing?.(!p.placing)}>{p.placing ? "點畫布放置…" : "移到點的位置"}</button>
         <span className="dh-muted">或直接拖曳；Shift 拖曳不吸附格點。</span>
@@ -530,6 +521,32 @@ function FurniturePanel(p: SidebarProps & { f: Furniture }) {
         <button className="dh-btn danger" onClick={() => { p.onCommit(removeFurniture(layout, f.id)); p.onSelect(null); }}>刪除</button>
       </div>
     </section>
+  );
+}
+
+/** Text input with a draft: Enter / 儲存 commits, Esc / 取消 reverts. Nothing is written while typing. */
+export function TextField({ label, value, placeholder, onSave }: { label: string; value: string; placeholder?: string; onSave: (v: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  const [base, setBase] = useState(value);
+  if (base !== value) { setBase(value); setDraft(value); } // external change (undo, selection switch)
+  const dirty = draft !== value;
+  const save = () => { if (dirty) onSave(draft); };
+  const cancel = () => setDraft(value);
+  return (
+    <div className="dh-field">
+      <label>{label}{dirty ? "（未儲存）" : ""}</label>
+      <div className="dh-row" style={{ flexWrap: "nowrap" }}>
+        <input
+          style={{ flex: 1, minWidth: 0 }}
+          value={draft}
+          placeholder={placeholder}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } else if (e.key === "Escape") { e.preventDefault(); cancel(); } }}
+        />
+        {dirty && <button className="dh-btn small on" onClick={save}>儲存</button>}
+        {dirty && <button className="dh-btn small" onClick={cancel}>取消</button>}
+      </div>
+    </div>
   );
 }
 

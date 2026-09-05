@@ -7,6 +7,8 @@ export const CSS = `
 .dh-toolbar{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--dh-card);border-bottom:1px solid var(--dh-border);flex-wrap:wrap}
 .dh-toolbar .dh-title{font-weight:700;margin-right:8px;font-size:15px}
 .dh-toolbar .dh-spacer{flex:1}
+.dh-toolbar .dh-name .dh-field{margin:0}
+.dh-toolbar .dh-name label:empty{display:none}
 .dh-btn{border:1px solid var(--dh-border);background:var(--dh-card);border-radius:6px;padding:5px 10px;cursor:pointer;font:inherit;color:var(--dh-text);line-height:1.2}
 .dh-btn:hover{background:var(--dh-hover)}
 .dh-btn:disabled{opacity:.45;cursor:default}

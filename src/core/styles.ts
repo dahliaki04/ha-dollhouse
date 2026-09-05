@@ -40,7 +40,20 @@ export const CSS = `
 @keyframes dh-pulse{0%{opacity:.35;transform:scale(.8)}100%{opacity:0;transform:scale(1.6)}}
 .dh-pulse{animation:dh-pulse 1.6s ease-out infinite;transform-box:fill-box;transform-origin:center}
 .dh-marker text{pointer-events:none;user-select:none}
-@media (max-width:800px){.dh-body{flex-direction:column;overflow:auto;-webkit-overflow-scrolling:touch}.dh-canvas-wrap{flex:none;height:52dvh;min-height:300px;position:sticky;top:0;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.25)}.dh-side{flex:none;width:100%;height:auto;border-left:none;border-top:1px solid var(--dh-border);padding:10px;overflow:visible}.dh-toolbar{padding:6px 8px;gap:4px}.dh-toolbar .dh-title{font-size:14px;margin-right:2px}.dh-name{display:none}.dh-btn{padding:7px 9px}.dh-hint{display:none}.dh-save{display:none}}
+.dh-btn:focus-visible,.dh-sec-head:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--dh-primary);outline-offset:2px}
+.dh-sec{border-bottom:1px solid var(--dh-border);margin:0 -12px}
+.dh-sec-head{display:flex;align-items:center;gap:8px;width:100%;padding:11px 12px;background:none;border:0;font:inherit;color:var(--dh-text);cursor:pointer;text-align:left}
+.dh-sec-head:hover{background:var(--dh-hover)}
+.dh-sec-chev{width:12px;color:var(--dh-muted);font-size:11px}
+.dh-sec-title{flex:1;font-weight:600;font-size:13px}
+.dh-sec-body{padding:2px 12px 14px}
+.dh-sec-body section{margin-bottom:0}
+.dh-panel-head{display:flex;align-items:center;gap:10px;margin:-4px 0 12px}
+.dh-toast{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);max-width:calc(100% - 24px);background:rgba(17,24,39,.94);color:#fff;padding:9px 14px;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:12px;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.dh-toast.error{background:#b91c1c}
+.dh-toast-action{background:none;border:0;color:#93c5fd;font:inherit;font-weight:600;cursor:pointer;padding:0}
+.dh-steps{margin:0;padding:0 0 0 18px;line-height:1.7}
+@media (max-width:800px){.dh-toolbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:6px;padding:8px 10px}.dh-toolbar::-webkit-scrollbar{display:none}.dh-toolbar>*{flex:none}.dh-btn{min-height:38px}.dh-btn.small{min-height:34px;padding:4px 10px}.dh-list li{min-height:40px}input[type=checkbox]{width:20px;height:20px}.dh-body{flex-direction:column;overflow:auto;-webkit-overflow-scrolling:touch}.dh-canvas-wrap{flex:none;height:52dvh;min-height:300px;position:sticky;top:0;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.25)}.dh-side{flex:none;width:100%;height:auto;border-left:none;border-top:1px solid var(--dh-border);padding:10px;overflow:visible}.dh-toolbar{padding:6px 8px;gap:4px}.dh-toolbar .dh-title{font-size:14px;margin-right:2px}.dh-name{display:none}.dh-btn{padding:7px 9px}.dh-hint{left:8px;right:8px;bottom:6px;font-size:11px;padding:3px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dh-save{display:none}}
 `;
 
 /** Inject once into the root that contains the app: document.head, or a ShadowRoot (HA custom panels live in shadow DOM). */

@@ -12,6 +12,7 @@ import { FURNITURE, FURNITURE_GROUPS, makeFurniture, type Furniture, type Furnit
 import { centroid } from "../domain/geometry";
 import { EntityPicker } from "./EntityPicker";
 import { VERSION } from "../version";
+import { PanelHeader, Section, type Toast } from "./ui";
 
 export interface SidebarProps {
   layout: Layout;
@@ -25,6 +26,9 @@ export interface SidebarProps {
   onStartScale: () => void;
   placing?: boolean;
   onPlacing?: (v: boolean) => void;
+  onNotify?: (t: Toast | string) => void;
+  wallMulti?: boolean;
+  onWallMulti?: (v: boolean) => void;
 }
 
 const FIXTURES: { v: FixtureType; label: string }[] = [
@@ -79,17 +83,71 @@ function LayoutPanel(p: SidebarProps) {
     try {
       p.onCommit(setBackground(layout, await importBackground(f)));
     } catch (e) {
-      alert((e as Error).message);
+      p.onNotify?.({ text: (e as Error).message, kind: "error" });
     } finally {
       setBusy(false);
     }
   };
 
 
+  const noRooms = layout.rooms.length === 0;
   return (
     <>
-      <section>
-        <h3>底圖</h3>
+      {noRooms && (
+        <section style={{ padding: "6px 0 10px" }}>
+          <h3>三步驟</h3>
+          <ol className="dh-steps">
+            <li>（可選）上傳平面圖 PDF / JPG 當底圖，用「點選房間」點房間內部自動框出。</li>
+            <li>沒有底圖就用「矩形房間」：點一個角、再點對角。</li>
+            <li>點房間 → 連結 HA area → 加入裝置。</li>
+          </ol>
+        </section>
+      )}
+
+      <Section id="rooms" title="房間" defaultOpen badge={layout.rooms.length || undefined}>
+        {layout.rooms.length === 0 && <div className="dh-muted">還沒有房間。用上方「矩形房間」工具畫一間。</div>}
+        <ul className="dh-list">
+          {layout.rooms.map((r) => (
+            <li key={r.id} onClick={() => p.onSelect({ kind: "room", id: r.id })}>
+              <span>{r.name}</span>
+              <span className="dh-muted">{r.areaId ? hass.areas[r.areaId]?.name : "未連結 area"}</span>
+            </li>
+          ))}
+        </ul>
+      
+      </Section>
+
+      <Section id="devices" title="加入裝置" defaultOpen badge={layout.items.length || undefined}>
+        <EntityPicker hass={hass} layout={layout} onAdd={(ids) => {
+          const cx = layout.canvas.width / 2;
+          const cy = layout.canvas.height / 2;
+          const step = 0.6 / layout.metresPerUnit;
+          const items = ids.map((id, i) => makeItem(hass, id, cx + (i % 4) * step, cy + Math.floor(i / 4) * step));
+          p.onCommit(addItems(layout, items));
+          if (items.length === 1) p.onSelect({ kind: "item", id: items[0].id });
+        }} />
+        <div className="dh-muted" style={{ marginTop: 6 }}>先選一間房間再加，會直接放進那間。</div>
+      
+      </Section>
+
+      <Section id="furniture" title="家具（純裝飾）" badge={(layout.furniture ?? []).length || undefined}>
+        {FURNITURE_GROUPS.map((grp) => (
+          <div key={grp} className="dh-row" style={{ marginBottom: 6 }}>
+            <span className="dh-muted" style={{ width: 34 }}>{grp}</span>
+            {(Object.keys(FURNITURE) as FurnitureType[]).filter((t) => FURNITURE[t].group === grp).map((t) => (
+              <button key={t} className="dh-btn small" onClick={() => {
+                const f = makeFurniture(t, layout.canvas.width / 2, layout.canvas.height / 2);
+                p.onCommit(addFurniture(layout, f));
+                p.onSelect({ kind: "furniture", id: f.id });
+              }}>{FURNITURE[t].label}</button>
+            ))}
+          </div>
+        ))}
+        <div className="dh-muted">先選一間房間再按，家具會放在那間房的中央。</div>
+      
+      </Section>
+
+      <Section id="background" title="底圖與比例" defaultOpen={noRooms}>
         <div className="dh-row">
           <button className="dh-btn" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? "處理中…" : layout.background ? "換底圖" : "上傳 PDF / JPG"}</button>
           {layout.background && <button className="dh-btn" onClick={() => p.onCommit(setBackground(layout, null))}>移除</button>}
@@ -101,10 +159,8 @@ function LayoutPanel(p: SidebarProps) {
             <input type="range" min={0.1} max={1} step={0.05} value={layout.background.opacity ?? 0.6} onChange={(e) => p.onCommit({ ...layout, background: { ...layout.background!, opacity: Number(e.target.value) } })} />
           </div>
         )}
-      </section>
-
-      <section>
-        <h3>比例</h3>
+      
+        <div style={{ height: 10 }} />
         <div className="dh-muted">畫布寬 {(layout.canvas.width * layout.metresPerUnit).toFixed(1)} m</div>
         <div className="dh-row" style={{ marginTop: 6 }}>
           <button className="dh-btn" onClick={p.onStartScale}>用已知距離校正</button>
@@ -119,10 +175,10 @@ function LayoutPanel(p: SidebarProps) {
             <option value={1}>1</option>
           </select>
         </div>
-      </section>
+      
+      </Section>
 
-      <section>
-        <h3>牆</h3>
+      <Section id="walls" title="牆" badge={`${walls.length} 面`}>
         <div className="dh-row">
           <NumberField label="外牆 (cm)" value={layout.wallDefaults.exterior * 100} onChange={(v) => p.onCommit({ ...layout, wallDefaults: { ...layout.wallDefaults, exterior: v / 100 } })} />
           <NumberField label="內牆 (cm)" value={layout.wallDefaults.interior * 100} onChange={(v) => p.onCommit({ ...layout, wallDefaults: { ...layout.wallDefaults, interior: v / 100 } })} />
@@ -130,7 +186,17 @@ function LayoutPanel(p: SidebarProps) {
         </div>
         <WallQuickSelect walls={walls} onSelect={p.onSelect} />
         <div className="dh-muted" style={{ marginTop: 4 }}>{walls.length} 面牆，{Object.keys(layout.wallThickness).length} 面自訂厚度，{walls.filter((w) => w.virtual).length} 面虛擬</div>
-      </section>
+      
+      </Section>
+
+      <Section id="view3d" title="3D">
+        <label className="dh-row" style={{ cursor: "pointer" }}>
+          <input type="checkbox" style={{ width: "auto" }} checked={layout.labels3d !== false} onChange={(e) => p.onCommit({ ...layout, labels3d: e.target.checked })} />
+          <span>顯示感測數值標籤</span>
+        </label>
+        <div className="dh-muted">感測器很多時關掉會清爽很多；燈、冷氣、窗簾不受影響。</div>
+      
+      </Section>
 
       {(() => {
         const dead = layout.items.filter((i) => { const st = hass.states[i.entityId]?.state; return !st || st === "unavailable" || st === "unknown"; });
@@ -143,66 +209,14 @@ function LayoutPanel(p: SidebarProps) {
         ) : null;
       })()}
 
-      <section>
-        <h3>3D</h3>
-        <label className="dh-row" style={{ cursor: "pointer" }}>
-          <input type="checkbox" style={{ width: "auto" }} checked={layout.labels3d !== false} onChange={(e) => p.onCommit({ ...layout, labels3d: e.target.checked })} />
-          <span>顯示感測數值標籤</span>
-        </label>
-        <div className="dh-muted">感測器很多時關掉會清爽很多；燈、冷氣、窗簾不受影響。</div>
-      </section>
-
-      <section>
-        <h3>房間</h3>
-        {layout.rooms.length === 0 && <div className="dh-muted">還沒有房間。用上方「矩形房間」工具畫一間。</div>}
-        <ul className="dh-list">
-          {layout.rooms.map((r) => (
-            <li key={r.id} onClick={() => p.onSelect({ kind: "room", id: r.id })}>
-              <span>{r.name}</span>
-              <span className="dh-muted">{r.areaId ? hass.areas[r.areaId]?.name : "未連結 area"}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <h3>加入裝置</h3>
-        <EntityPicker hass={hass} layout={layout} onAdd={(ids) => {
-          const cx = layout.canvas.width / 2;
-          const cy = layout.canvas.height / 2;
-          const step = 0.6 / layout.metresPerUnit;
-          const items = ids.map((id, i) => makeItem(hass, id, cx + (i % 4) * step, cy + Math.floor(i / 4) * step));
-          p.onCommit(addItems(layout, items));
-          if (items.length === 1) p.onSelect({ kind: "item", id: items[0].id });
-        }} />
-        <div className="dh-muted" style={{ marginTop: 6 }}>先選一間房間再加，會直接放進那間。</div>
-      </section>
-
-      <section>
-        <h3>加家具（純裝飾，不綁 entity）</h3>
-        {FURNITURE_GROUPS.map((grp) => (
-          <div key={grp} className="dh-row" style={{ marginBottom: 6 }}>
-            <span className="dh-muted" style={{ width: 34 }}>{grp}</span>
-            {(Object.keys(FURNITURE) as FurnitureType[]).filter((t) => FURNITURE[t].group === grp).map((t) => (
-              <button key={t} className="dh-btn small" onClick={() => {
-                const f = makeFurniture(t, layout.canvas.width / 2, layout.canvas.height / 2);
-                p.onCommit(addFurniture(layout, f));
-                p.onSelect({ kind: "furniture", id: f.id });
-              }}>{FURNITURE[t].label}</button>
-            ))}
-          </div>
-        ))}
-        <div className="dh-muted">先選一間房間再按，家具會放在那間房的中央。</div>
-      </section>
-
-      <section>
-        <h3>檔案</h3>
+      <Section id="files" title="檔案">
         <div className="dh-row">
           <button className="dh-btn" onClick={p.onExport}>匯出 JSON</button>
           <button className="dh-btn" onClick={() => importRef.current?.click()}>匯入 JSON</button>
           <input ref={importRef} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && p.onImport(e.target.files[0])} />
         </div>
-      </section>
+      
+      </Section>
 
       <section>
         <div className="dh-muted">Dollhouse v{VERSION} · WebGL {webglOk() ? "可用" : "不可用"} · 視窗 {typeof window !== "undefined" ? `${window.innerWidth}×${window.innerHeight}` : ""}</div>
@@ -247,8 +261,11 @@ function WallPanel(p: SidebarProps & { selected: Wall[] }) {
   const virt = selected.filter((w) => w.virtual).length;
   return (
     <>
+      <PanelHeader title={`已選 ${selected.length} 面牆`} onBack={() => p.onSelect(null)} />
       <section>
-        <h3>已選 {selected.length} 面牆</h3>
+        <div className="dh-row" style={{ marginBottom: 8 }}>
+          <button className={`dh-btn small${p.wallMulti ? " on" : ""}`} onClick={() => p.onWallMulti?.(!p.wallMulti)}>{p.wallMulti ? "多選中：點牆加選 / 取消" : "多選（點牆加入）"}</button>
+        </div>
         <div className="dh-muted">{ext} 面外牆、{selected.length - ext} 面內牆{virt ? `，${virt} 面虛擬` : ""}，目前厚度 {uniform ? `${Math.round(first * 100)} cm` : "不一致"}</div>
         <div className="dh-field" style={{ marginTop: 8 }}>
           <label>實牆 / 虛擬區隔</label>
@@ -276,7 +293,7 @@ function WallPanel(p: SidebarProps & { selected: Wall[] }) {
       <section>
         <h3>快速選取</h3>
         <WallQuickSelect walls={walls} onSelect={p.onSelect} />
-        <div className="dh-muted" style={{ marginTop: 6 }}>畫布上 Shift+點牆 可加選或取消。</div>
+        <div className="dh-muted" style={{ marginTop: 6 }}>開「多選」後點牆可加選或取消；桌機也可以 Shift+點。</div>
       </section>
     </>
   );
@@ -292,8 +309,8 @@ function RoomPanel(p: SidebarProps & { room: Room }) {
   const areas = Object.values(hass.areas).sort((a, b) => a.name.localeCompare(b.name));
   return (
     <>
+      <PanelHeader title={room.name} subtitle={room.areaId ? `area：${hass.areas[room.areaId]?.name ?? room.areaId}` : "未連結 area"} onBack={() => p.onSelect(null)} />
       <section>
-        <h3>房間</h3>
         <TextField label="名稱" value={room.name} onSave={(v) => p.onCommit(updateRoom(layout, room.id, { name: v }))} />
         <div className="dh-field">
           <label>Home Assistant area</label>
@@ -321,7 +338,7 @@ function RoomPanel(p: SidebarProps & { room: Room }) {
         </div>
         <div className="dh-muted">面積約 {(Math.abs(area(room)) * layout.metresPerUnit ** 2).toFixed(1)} m²，{room.points.length} 個頂點（選取後可拖頂點）</div>
         <div className="dh-row" style={{ marginTop: 10 }}>
-          <button className="dh-btn danger" onClick={() => { p.onCommit(removeRoom(layout, room.id)); p.onSelect(null); }}>刪除房間</button>
+          <button className="dh-btn danger" onClick={() => { p.onCommit(removeRoom(layout, room.id)); p.onSelect(null); p.onNotify?.("已刪除房間，可用工具列的復原鍵還原"); }}>刪除房間</button>
         </div>
       </section>
       <section>
@@ -361,9 +378,7 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
   const attrs = s ? Object.keys(s.attributes).filter((a) => !["friendly_name", "icon", "supported_features", "supported_color_modes"].includes(a)) : [];
   return (
     <section>
-      <h3>裝置</h3>
-      <div><b>{friendlyName(hass, item.entityId)}</b></div>
-      <div className="dh-muted" style={{ marginBottom: 8 }}>{item.entityId} · 狀態 {s?.state ?? "unknown"}</div>
+      <PanelHeader title={friendlyName(hass, item.entityId)} subtitle={`${item.entityId} · 狀態 ${s?.state ?? "unknown"}`} onBack={() => p.onSelect(null)} />
       <div className="dh-field">
         <label>顯示方式</label>
         <select value={item.kind} onChange={(e) => p.onCommit(updateItem(layout, item.id, { kind: e.target.value as ItemKind }))}>
@@ -502,7 +517,7 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
         <span className="dh-muted">位置 ({(item.x * layout.metresPerUnit).toFixed(2)}, {(item.y * layout.metresPerUnit).toFixed(2)}) m</span>
       </div>
       <div className="dh-row" style={{ marginTop: 10 }}>
-        <button className="dh-btn danger" onClick={() => { p.onCommit(removeItem(layout, item.id)); p.onSelect(null); }}>移除</button>
+        <button className="dh-btn danger" onClick={() => { p.onCommit(removeItem(layout, item.id)); p.onSelect(null); p.onNotify?.("已移除裝置，可用復原鍵還原"); }}>移除</button>
       </div>
     </section>
   );
@@ -516,7 +531,7 @@ function FurniturePanel(p: SidebarProps & { f: Furniture }) {
   const set = (patch: Partial<Furniture>) => p.onCommit(updateFurniture(layout, f.id, patch));
   return (
     <section>
-      <h3>家具</h3>
+      <PanelHeader title={f.label || spec.label} subtitle="家具" onBack={() => p.onSelect(null)} />
       <div className="dh-field">
         <label>種類</label>
         <select value={f.type} onChange={(e) => { const t = e.target.value as FurnitureType; const s = FURNITURE[t]; set({ type: t, w: s.w, d: s.d, h: s.h, color: s.color }); }}>
@@ -546,7 +561,7 @@ function FurniturePanel(p: SidebarProps & { f: Furniture }) {
       </div>
       <div className="dh-row" style={{ marginTop: 10 }}>
         <button className="dh-btn" onClick={() => { const c = makeFurniture(f.type, f.x + 0.3 / layout.metresPerUnit, f.y + 0.3 / layout.metresPerUnit); p.onCommit(addFurniture(layout, { ...c, w: f.w, d: f.d, h: f.h, color: f.color, rotation: f.rotation })); p.onSelect({ kind: "furniture", id: c.id }); }}>複製</button>
-        <button className="dh-btn danger" onClick={() => { p.onCommit(removeFurniture(layout, f.id)); p.onSelect(null); }}>刪除</button>
+        <button className="dh-btn danger" onClick={() => { p.onCommit(removeFurniture(layout, f.id)); p.onSelect(null); p.onNotify?.("已刪除家具，可用復原鍵還原"); }}>刪除</button>
       </div>
     </section>
   );

@@ -26,6 +26,8 @@ export interface Canvas2DProps {
   /** Tap-to-place: next tap on the canvas moves the selected item/furniture there. */
   placing?: boolean;
   onPlaced?: () => void;
+  /** Touch-friendly multi-select for walls (acts like holding Shift). */
+  wallMulti?: boolean;
 }
 
 interface ViewBox { x: number; y: number; w: number; h: number }
@@ -388,7 +390,7 @@ export function Canvas2D(p: Canvas2DProps) {
     if (tool !== "select" || e.button !== 0) return;
     e.stopPropagation();
     const cur = selection?.kind === "walls" ? selection.ids : [];
-    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+    if (e.shiftKey || e.ctrlKey || e.metaKey || p.wallMulti) {
       p.onSelect({ kind: "walls", ids: cur.includes(wall.id) ? cur.filter((i) => i !== wall.id) : [...cur, wall.id] });
     } else p.onSelect({ kind: "walls", ids: [wall.id] });
   };
@@ -470,6 +472,7 @@ export function Canvas2D(p: Canvas2DProps) {
           return (
             <g key={w.id} className="dh-wall" onPointerDown={(e) => clickWall(e, w)}>
               <line x1={w.a[0]} y1={w.a[1]} x2={w.b[0]} y2={w.b[1]} stroke={sel ? "#2563eb" : w.virtual ? "#94a3b8" : w.exterior ? "#374151" : "#6b7280"} strokeWidth={t} strokeLinecap={w.exterior && !w.virtual ? "square" : "butt"} strokeDasharray={w.virtual ? `${0.15 * m} ${0.1 * m}` : undefined} />
+              {sel && <line x1={w.a[0]} y1={w.a[1]} x2={w.b[0]} y2={w.b[1]} stroke="#fff" strokeWidth={Math.max(0.02 * m, t * 0.35)} strokeDasharray={`${0.12 * m} ${0.08 * m}`} pointerEvents="none" />}
               {/* fat invisible hit area */}
               <line x1={w.a[0]} y1={w.a[1]} x2={w.b[0]} y2={w.b[1]} stroke="transparent" strokeWidth={Math.max(t, 0.25 * m)} />
             </g>
@@ -536,7 +539,7 @@ function hint(tool: Tool, polyN: number, scaleN: number, rectPending = false): s
   if (tool === "rect") return rectPending ? "再點對角的角落完成" : "點一個角、再點對角；或直接拖出矩形";
   if (tool === "polygon") return polyN === 0 ? "逐點點出房間輪廓，點回起點或按 Enter 完成，Esc 取消" : `已 ${polyN} 點，點回起點或 Enter 完成`;
   if (tool === "scale") return scaleN === 0 ? "點兩個已知距離的點（例如一面牆的兩端）" : "點第二個點";
-  return "拖曳裝置或房間；點牆可選取（Shift 多選）；滾輪縮放，Alt+拖曳平移";
+  return "拖曳裝置或房間；點牆可選取；滾輪或雙指縮放";
 }
 
 /** ViewBox that shows the whole canvas and has exactly the container's aspect ratio. */

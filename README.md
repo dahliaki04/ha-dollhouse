@@ -1,4 +1,6 @@
-# Dollhouse 🏠
+<p align="center"><img src="assets/brand/logo.png" width="360" alt="Dollhouse"></p>
+
+# Dollhouse
 
 Draw your home in minutes, drag your Home Assistant entities onto it, and see it as a 2D plan or a 3D dollhouse. No CAD skills needed.
 

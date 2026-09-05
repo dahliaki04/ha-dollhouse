@@ -5,6 +5,7 @@ import { resolveKind } from "../domain/entities";
 import { domainOf, type HassLike, type LayoutStore } from "../ha/types";
 import { Canvas2D } from "./Canvas2D";
 import { Sidebar, TextField } from "./Sidebar";
+import { Mark } from "./Mark";
 import { injectStyles } from "./styles";
 import { addRoom, removeFurniture, removeItem, removeRoom, setScale, useEditor, type Tool } from "./useEditor";
 
@@ -141,7 +142,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   return (
     <div className="dh-app" ref={rootRef}>
       <div className="dh-toolbar">
-        <span className="dh-title">🏠 Dollhouse</span>
+        <span className="dh-title" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Mark /> Dollhouse</span>
         <span className="dh-name" style={{ width: 200 }}><TextField label="" value={state.layout.name} onSave={(v) => commit({ ...state.layout, name: v })} /></span>
         {toolBtn("select", "選取", "V")}
         {toolBtn("rect", "矩形房間", "R")}

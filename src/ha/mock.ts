@@ -44,6 +44,9 @@ export function createMockHass(onChange: () => void): HassLike {
       reg("sensor.temp_master", null, "d_co2"),
       reg("switch.drying_rack", "dining"),
       reg("cover.living_curtain", "living"),
+      reg("cover.master_curtain", "master"),
+      reg("cover.kid_honeycomb", "kid"),
+      reg("cover.dining_blind", "dining"),
     ].map((e) => [e.entity_id, e]),
   );
 
@@ -67,7 +70,10 @@ export function createMockHass(onChange: () => void): HassLike {
       st("sensor.co2_master", "812", { friendly_name: "主臥 CO2", unit_of_measurement: "ppm", device_class: "carbon_dioxide" }),
       st("sensor.temp_master", "26.4", { friendly_name: "主臥溫度", unit_of_measurement: "°C", device_class: "temperature" }),
       st("switch.drying_rack", "off", { friendly_name: "曬衣架" }),
-      st("cover.living_curtain", "open", { friendly_name: "客廳窗簾", current_position: 100 }),
+      st("cover.living_curtain", "open", { friendly_name: "客廳窗簾", device_class: "curtain", current_position: 100, supported_features: 15 }),
+      st("cover.master_curtain", "open", { friendly_name: "主臥窗簾", device_class: "curtain", current_position: 40, supported_features: 15 }),
+      st("cover.kid_honeycomb", "open", { friendly_name: "果的房間蜂巢簾", device_class: "shade", current_position: 65, supported_features: 15 }),
+      st("cover.dining_blind", "open", { friendly_name: "餐廳百葉", device_class: "blind", current_position: 100, current_tilt_position: 35, supported_features: 255 }),
     ].map((s) => [s.entity_id, s]),
   );
 
@@ -83,7 +89,10 @@ export function createMockHass(onChange: () => void): HassLike {
         const s = states[id];
         if (!s) continue;
         const next = { ...s, attributes: { ...s.attributes } };
-        if (service === "toggle") next.state = s.state === "on" || s.state === "open" ? (domain === "cover" ? "closed" : "off") : domain === "cover" ? "open" : "on";
+        if (service === "toggle") {
+          next.state = s.state === "on" || s.state === "open" ? (domain === "cover" ? "closed" : "off") : domain === "cover" ? "open" : "on";
+          if (domain === "cover" && next.attributes.current_position !== undefined) next.attributes.current_position = next.state === "open" ? 100 : 0;
+        }
         else if (service === "turn_on") next.state = "on";
         else if (service === "turn_off") next.state = "off";
         else if (service === "set_temperature" && typeof data?.temperature === "number") next.attributes.temperature = data.temperature;

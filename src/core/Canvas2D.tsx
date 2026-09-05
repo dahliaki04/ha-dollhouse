@@ -5,7 +5,7 @@ import { wallThicknessUnits } from "../domain/walls";
 import { lightColor, Marker } from "./markers";
 import { moveRoom, updateItem, updateRoom, type Selection, type Tool } from "./useEditor";
 import type { HassLike } from "../ha/types";
-import { entitiesInArea } from "../domain/entities";
+import { entitiesInArea, resolveKind } from "../domain/entities";
 
 export interface Canvas2DProps {
   layout: Layout;
@@ -174,9 +174,23 @@ export function Canvas2D(p: Canvas2DProps) {
       const dx = pt[0] - drag.start[0];
       const dy = pt[1] - drag.start[1];
       if (!drag.moved && Math.hypot(dx, dy) < 0.05 * m) return;
-      const target: Point = e.shiftKey ? [drag.orig[0] + dx, drag.orig[1] + dy] : snapToGridPt([drag.orig[0] + dx, drag.orig[1] + dy], gridUnits / 5);
+      let target: Point = e.shiftKey ? [drag.orig[0] + dx, drag.orig[1] + dy] : snapToGridPt([drag.orig[0] + dx, drag.orig[1] + dy], gridUnits / 5);
+      const item = layoutRef.current.items.find((i) => i.id === drag.id);
+      let patch: Partial<Item> = {};
+      if (item && resolveKind(item, hass) === "cover" && !e.shiftKey) {
+        // Covers live on walls: snap to the nearest wall within 0.5 m and align to it.
+        const raw: Point = [drag.orig[0] + dx, drag.orig[1] + dy];
+        const w = nearestWall(walls, raw);
+        if (w) {
+          const { d, t } = pointToSegment(raw, w.a, w.b);
+          if (d < 0.5 * m) {
+            target = [w.a[0] + (w.b[0] - w.a[0]) * t, w.a[1] + (w.b[1] - w.a[1]) * t];
+            patch = { rotation: Math.round((Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]) * 180) / Math.PI) };
+          }
+        }
+      }
       setDrag({ ...drag, moved: true });
-      p.onPreview(updateItem(layoutRef.current, drag.id, { x: target[0], y: target[1] }));
+      p.onPreview(updateItem(layoutRef.current, drag.id, { x: target[0], y: target[1], ...patch }));
     } else if (drag.kind === "room") {
       const s = snapToGridPt(pt, gridUnits);
       const dx = s[0] - drag.last[0];

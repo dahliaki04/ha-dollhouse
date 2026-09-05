@@ -1,6 +1,7 @@
 import { autoPlace, entitiesInArea } from "../domain/entities";
 import { rectToPolygon } from "../domain/geometry";
 import { emptyLayout, type Layout, type Room } from "../domain/types";
+import { deriveWalls } from "../domain/walls";
 import type { HassLike } from "./types";
 
 /** A 12 m × 8 m apartment with rooms linked to the mock areas and entities auto-placed. */
@@ -24,9 +25,10 @@ export function demoLayout(hass: HassLike): Layout {
     mk("r_kid", "果的房間", "kid", 5, 5, 3.5, 3),
     mk("r_bath", "浴室", null, 8.5, 5, 3.5, 3),
   ];
+  const walls = deriveWalls(layout);
   for (const r of layout.rooms) {
     if (!r.areaId) continue;
-    layout.items.push(...autoPlace(hass, r, entitiesInArea(hass, r.areaId), layout.items, 1.0 / layout.metresPerUnit));
+    layout.items.push(...autoPlace(hass, r, entitiesInArea(hass, r.areaId), layout.items, 1.0 / layout.metresPerUnit, walls));
   }
   const kitchen = layout.items.find((i) => i.entityId === "light.kitchen_downlight");
   if (kitchen) kitchen.color = "#f6f1e6"; // 4000K-ish, user-set: this light only reports on/off

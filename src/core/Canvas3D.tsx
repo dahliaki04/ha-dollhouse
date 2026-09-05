@@ -5,6 +5,7 @@ import type { Layout, Point } from "../domain/types";
 import { deriveWalls } from "../domain/walls";
 import { bbox, centroid } from "../domain/geometry";
 import { FIXTURE_HEIGHT, resolveKind } from "../domain/entities";
+import { coverView } from "../domain/covers";
 import type { HassLike } from "../ha/types";
 import { brightness01, lightColor } from "./markers";
 
@@ -283,6 +284,56 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       const txt = mode === "off" ? `${cur?.toFixed(1) ?? "--"}° 關` : `${cur?.toFixed(1) ?? "--"}° → ${target ?? "--"}°`;
       const sp = textSprite(txt, "#111827", 0.9);
       sp.position.set(x, (item.z ?? 2.2) + 0.45, z);
+      scene.add(sp);
+    } else if (kind === "cover") {
+      const v = coverView(hass, item);
+      const L = item.length ?? 1.5;
+      const H = 2.2; // curtain drop
+      const top = 2.4;
+      const rotY = THREE.MathUtils.degToRad(-(item.rotation ?? 0));
+      const group = new THREE.Group();
+      group.position.set(x, 0, z);
+      group.rotation.y = rotY;
+      const fabric = new THREE.MeshStandardMaterial({ color: v.unknown ? 0x9ca3af : 0x64748b, side: THREE.DoubleSide, roughness: 1 });
+      const glass = new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(L, H), glass);
+      win.position.set(0, top - H / 2, 0);
+      group.add(win);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(L + 0.1, 0.04, 0.06), new THREE.MeshStandardMaterial({ color: 0x1f2937 }));
+      rail.position.set(0, top + 0.02, 0.05);
+      group.add(rail);
+      if (v.style === "curtain") {
+        const pw = ((1 - v.open) * L) / 2;
+        if (pw > 0.01) {
+          for (const sgn of [-1, 1]) {
+            const p = new THREE.Mesh(new THREE.BoxGeometry(pw, H, 0.05), fabric);
+            p.position.set(sgn * (L / 2 - pw / 2), top - H / 2, 0.05);
+            p.castShadow = true;
+            group.add(p);
+          }
+        }
+      } else if (v.style === "roller") {
+        const drop = (1 - v.open) * H;
+        if (drop > 0.01) {
+          const p = new THREE.Mesh(new THREE.BoxGeometry(L, drop, 0.03), fabric);
+          p.position.set(0, top - drop / 2, 0.05);
+          p.castShadow = true;
+          group.add(p);
+        }
+      } else {
+        const drop = (1 - v.open) * H;
+        const n = Math.max(1, Math.round(drop / 0.08));
+        const slatMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, side: THREE.DoubleSide });
+        for (let i = 0; i < n; i++) {
+          const s = new THREE.Mesh(new THREE.BoxGeometry(L, 0.07, 0.01), slatMat);
+          s.position.set(0, top - 0.04 - i * 0.08, 0.05);
+          s.rotation.x = THREE.MathUtils.degToRad(80 - v.tilt * 80);
+          group.add(s);
+        }
+      }
+      scene.add(group);
+      const sp = textSprite(`${Math.round(v.open * 100)}%`, "#0f172a", 0.6);
+      sp.position.set(x, top + 0.35, z);
       scene.add(sp);
     } else if (kind === "presence") {
       const on = state?.state === "on";

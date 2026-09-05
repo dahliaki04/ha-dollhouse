@@ -1,4 +1,4 @@
-import type { FixtureType, Item, ItemKind, Layout, Point, Room } from "./types";
+import type { FixtureType, Item, ItemKind, Layout, Point, Room, Wall } from "./types";
 import { newId } from "./types";
 import { bbox, pointInPolygon } from "./geometry";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
@@ -42,8 +42,9 @@ const byDomainThenName = (hass: HassLike) => (a: string, b: string) => {
 export function resolveKind(item: Pick<Item, "kind" | "entityId">, hass: HassLike): Exclude<ItemKind, "auto"> {
   if (item.kind !== "auto") return item.kind;
   const dom = domainOf(item.entityId);
-  if (dom === "light") return "light";
+  if (dom === "light" || dom === "switch") return "light"; // relay switches almost always drive lights
   if (dom === "climate") return "climate";
+  if (dom === "cover") return "cover";
   if (dom === "binary_sensor") {
     const cls = hass.states[item.entityId]?.attributes.device_class as string | undefined;
     if (!cls || ["occupancy", "motion", "presence"].includes(cls)) return "presence";
@@ -72,7 +73,9 @@ export const FIXTURE_HEIGHT: Record<FixtureType, number> = {
 
 export function makeItem(hass: HassLike, entityId: string, x: number, y: number): Item {
   const item: Item = { id: newId("i"), entityId, x, y, kind: "auto" };
-  if (domainOf(entityId) === "light") item.fixture = guessFixture(hass, entityId);
+  const dom = domainOf(entityId);
+  if (dom === "light" || dom === "switch") item.fixture = guessFixture(hass, entityId);
+  if (dom === "cover") item.length = 1.5;
   return item;
 }
 
@@ -80,10 +83,21 @@ export function makeItem(hass: HassLike, entityId: string, x: number, y: number)
  * Place a list of entities inside a room on a grid, skipping points outside the
  * polygon. Lights get the inner cells first so they land near the centre.
  */
-export function autoPlace(hass: HassLike, room: Room, entityIds: string[], existing: Item[], labelBand = 0): Item[] {
+export function autoPlace(hass: HassLike, room: Room, entityIds: string[], existing: Item[], labelBand = 0, walls: Wall[] = []): Item[] {
   const already = new Set(existing.map((i) => i.entityId));
-  const todo = entityIds.filter((e) => !already.has(e));
-  if (todo.length === 0) return [];
+  const all = entityIds.filter((e) => !already.has(e));
+  // Covers go on the room exterior walls (longest first); everything else on the grid.
+  const covers = all.filter((e) => domainOf(e) === "cover");
+  const todo = all.filter((e) => domainOf(e) !== "cover");
+  const ext = walls.filter((w) => w.exterior && w.rooms[0] === room.id).sort((a, b) => segLen(b) - segLen(a));
+  const coverItems = covers.map((entityId, i) => {
+    const w = ext[i % Math.max(1, ext.length)];
+    if (!w) return makeItem(hass, entityId, (room.points[0][0] + room.points[1][0]) / 2, (room.points[0][1] + room.points[1][1]) / 2);
+    const it = makeItem(hass, entityId, (w.a[0] + w.b[0]) / 2, (w.a[1] + w.b[1]) / 2);
+    it.rotation = Math.round((Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]) * 180) / Math.PI);
+    return it;
+  });
+  if (todo.length === 0) return coverItems;
   const full = bbox(room.points);
   // Leave the label band at the top and a margin so markers stay clear of walls.
   const mx = Math.min(full.w * 0.15, labelBand * 0.6);
@@ -100,8 +114,10 @@ export function autoPlace(hass: HassLike, room: Room, entityIds: string[], exist
   }
   // Fallback if the polygon is thin: put everything on the centroid line.
   while (cells.length < todo.length) cells.push([box.x + box.w / 2, box.y + box.h / 2]);
-  return todo.map((entityId, i) => makeItem(hass, entityId, cells[i][0], cells[i][1]));
+  return [...coverItems, ...todo.map((entityId, i) => makeItem(hass, entityId, cells[i][0], cells[i][1]))];
 }
+
+const segLen = (w: Wall) => Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
 
 export function roomOfPoint(layout: Layout, p: Point): Room | undefined {
   return layout.rooms.find((r) => pointInPolygon(p, r.points));

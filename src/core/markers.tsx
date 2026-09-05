@@ -1,5 +1,6 @@
 import type { Item, Layout } from "../domain/types";
 import { resolveKind } from "../domain/entities";
+import { coverView } from "../domain/covers";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 
 export interface MarkerProps {
@@ -80,6 +81,7 @@ export function Marker(props: MarkerProps) {
   if (kind === "light") return <g {...common}>{ring}<LightGlyph item={item} hass={hass} m={m} /></g>;
   if (kind === "climate") return <g {...common}>{ring}<ClimateChip item={item} hass={hass} m={m} /></g>;
   if (kind === "presence") return <g {...common}>{ring}<PresenceDot item={item} hass={hass} m={m} /></g>;
+  if (kind === "cover") return <g {...common}>{ring}<CoverGlyph item={item} hass={hass} m={m} /></g>;
   return <g {...common}>{ring}<GenericChip item={item} hass={hass} m={m} /></g>;
 }
 
@@ -169,6 +171,69 @@ function PresenceDot({ item, hass, m }: { item: Item; hass: HassLike; m: number 
       <text y={0.04 * m} fontSize={0.14 * m} textAnchor="middle" fill={on ? "#fff" : "#15803d"}>人</text>
     </>
   );
+}
+
+/** Top-view cover along its wall: fabric = dark bars, open gap = light. Percent label stays upright. */
+function CoverGlyph({ item, hass, m }: { item: Item; hass: HassLike; m: number }) {
+  const v = coverView(hass, item);
+  const L = (item.length ?? 1.5) * m;
+  const t = 0.16 * m;
+  const fabric = v.unknown ? "#9ca3af" : "#475569";
+  const glass = "#bae6fd";
+  const pct = `${Math.round(v.open * 100)}%`;
+  let body: React.ReactNode;
+  if (v.style === "curtain") {
+    const panel = ((1 - v.open) * L) / 2;
+    body = (
+      <>
+        <rect x={-L / 2} y={-t / 2} width={L} height={t} fill={glass} stroke="#7dd3fc" strokeWidth={0.015 * m} />
+        <path d={wave(-L / 2, panel, t, m)} fill={fabric} />
+        <path d={wave(L / 2 - panel, panel, t, m)} fill={fabric} />
+      </>
+    );
+  } else if (v.style === "roller") {
+    const closed = (1 - v.open) * L;
+    body = (
+      <>
+        <rect x={-L / 2} y={-t / 2} width={L} height={t} fill={glass} stroke="#7dd3fc" strokeWidth={0.015 * m} />
+        <rect x={-L / 2} y={-t / 2} width={closed} height={t} fill={fabric} />
+        <rect x={-L / 2} y={-t / 2 - 0.04 * m} width={L} height={0.05 * m} fill="#1f2937" />
+      </>
+    );
+  } else {
+    // blind: slats across the width, rotated by tilt (0 = flat/closed, 1 = fully open)
+    const n = Math.max(3, Math.round(L / (0.12 * m)));
+    const ang = 80 - v.tilt * 80;
+    const closed = (1 - v.open) * L;
+    body = (
+      <>
+        <rect x={-L / 2} y={-t / 2} width={L} height={t} fill={glass} stroke="#7dd3fc" strokeWidth={0.015 * m} />
+        {Array.from({ length: n }, (_, i) => -L / 2 + ((i + 0.5) * L) / n).filter((x) => x < -L / 2 + closed + 1e-6).map((x, i) => (
+          <line key={i} x1={x} y1={-t / 2} x2={x} y2={t / 2} stroke={fabric} strokeWidth={0.03 * m} transform={`rotate(${ang} ${x} 0)`} />
+        ))}
+      </>
+    );
+  }
+  return (
+    <>
+      {body}
+      <g transform={`rotate(${-(item.rotation ?? 0)})`}>
+        <rect x={-0.22 * m} y={0.14 * m} width={0.44 * m} height={0.2 * m} rx={0.1 * m} fill="#fff" stroke="#94a3b8" strokeWidth={0.012 * m} />
+        <text y={0.29 * m} fontSize={0.15 * m} textAnchor="middle" fill="#0f172a">{v.moving ? "…" : pct}</text>
+      </g>
+    </>
+  );
+}
+
+function wave(x0: number, w: number, t: number, m: number): string {
+  if (w <= 0) return "";
+  const n = Math.max(1, Math.round(w / (0.1 * m)));
+  const step = w / n;
+  let d = `M ${x0} ${-t / 2}`;
+  for (let i = 0; i < n; i++) d += ` q ${step / 2} ${(i % 2 ? -1 : 1) * t * 0.6} ${step} 0`;
+  d += ` L ${x0 + w} ${t / 2}`;
+  for (let i = n - 1; i >= 0; i--) d += ` q ${-step / 2} ${(i % 2 ? 1 : -1) * t * 0.6} ${-step} 0`;
+  return d + " Z";
 }
 
 const DOMAIN_GLYPH: Record<string, string> = { switch: "⏻", fan: "✢", cover: "▤", media_player: "♪", sensor: "◎", binary_sensor: "◉", lock: "🔒", vacuum: "⌂", humidifier: "≈" };

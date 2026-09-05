@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import type { FixtureType, Item, ItemKind, Layout, Wall } from "../domain/types";
+import type { CoverStyle, FixtureType, Item, ItemKind, Layout, Wall } from "../domain/types";
+import { coverView, guessCoverStyle } from "../domain/covers";
 import { autoPlace, entitiesInArea, makeItem, PLACEABLE_DOMAINS, resolveKind } from "../domain/entities";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 import { importBackground } from "./background";
@@ -31,6 +32,7 @@ const KINDS: { v: ItemKind; label: string }[] = [
   { v: "light", label: "燈" },
   { v: "climate", label: "冷氣" },
   { v: "presence", label: "人在" },
+  { v: "cover", label: "窗簾" },
   { v: "generic", label: "通用" },
 ];
 
@@ -242,7 +244,7 @@ function RoomPanel(p: SidebarProps & { room: Room }) {
         </div>
         {room.areaId && (
           <div className="dh-row">
-            <button className="dh-btn on" disabled={missing.length === 0} onClick={() => p.onCommit(addItems(layout, autoPlace(hass, room, missing, layout.items, 1.0 / layout.metresPerUnit)))}>
+            <button className="dh-btn on" disabled={missing.length === 0} onClick={() => p.onCommit(addItems(layout, autoPlace(hass, room, missing, layout.items, 1.0 / layout.metresPerUnit, p.walls)))}>
               填入 {missing.length} 個裝置
             </button>
             <span className="dh-muted">{areaEntities.length - missing.length}/{areaEntities.length} 已放</span>
@@ -312,6 +314,37 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
           <div className="dh-muted">只有開關的燈（Shelly、Sonoff）在這裡指定色溫或顏色；有色溫或彩色的燈不設定就跟 HA 同步。</div>
         </div>
       )}
+      {kind === "cover" && (() => {
+        const v = coverView(hass, item);
+        const guessed = guessCoverStyle(hass, item.entityId);
+        const STYLES: { v: CoverStyle; label: string }[] = [{ v: "curtain", label: "橫拉" }, { v: "roller", label: "上下" }, { v: "blind", label: "百葉" }];
+        return (
+          <>
+            <div className="dh-field">
+              <label>窗簾型式 {item.coverStyle ? "（使用者指定）" : `（依屬性判斷：${STYLES.find((s) => s.v === guessed)?.label}）`}</label>
+              <div className="dh-row">
+                <button className={`dh-btn small${!item.coverStyle ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { coverStyle: null }))}>自動</button>
+                {STYLES.map((s) => <button key={s.v} className={`dh-btn small${item.coverStyle === s.v ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { coverStyle: s.v }))}>{s.label}</button>)}
+              </div>
+            </div>
+            <div className="dh-field">
+              <label>窗寬 (m)</label>
+              <div className="dh-row">
+                <input type="number" min={0.3} max={20} step={0.1} style={{ width: 90 }} value={item.length ?? 1.5} onChange={(e) => { const v2 = Number(e.target.value); if (v2 > 0) p.onCommit(updateItem(layout, item.id, { length: v2 })); }} />
+                {[1, 1.5, 2, 3, 4].map((L) => <button key={L} className={`dh-btn small${(item.length ?? 1.5) === L ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { length: L }))}>{L}</button>)}
+              </div>
+            </div>
+            <div className="dh-field">
+              <label>方向 (°)，拖到牆邊會自動貼齊</label>
+              <div className="dh-row">
+                <input type="number" step={15} style={{ width: 90 }} value={item.rotation ?? 0} onChange={(e) => p.onCommit(updateItem(layout, item.id, { rotation: Number(e.target.value) || 0 }))} />
+                {[0, 90].map((r) => <button key={r} className={`dh-btn small${(item.rotation ?? 0) === r ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { rotation: r }))}>{r === 0 ? "橫" : "直"}</button>)}
+              </div>
+            </div>
+            <div className="dh-muted">目前開 {Math.round(v.open * 100)}%{v.style === "blind" ? `，葉片 ${Math.round(v.tilt * 100)}%` : ""}。點圖示開關，雙擊拉到指定位置。</div>
+          </>
+        );
+      })()}
       {kind === "light" && item.fixture === "strip" && (
         <div className="dh-field">
           <label>燈條長度 (m)</label>

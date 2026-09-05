@@ -10,7 +10,10 @@ export type Point = [number, number];
 
 export type FixtureType = "downlight" | "ceiling" | "pendant" | "wall" | "strip";
 
-export type ItemKind = "auto" | "light" | "climate" | "presence" | "generic";
+export type ItemKind = "auto" | "light" | "climate" | "presence" | "cover" | "generic";
+
+/** curtain = side-draw 橫拉, roller = top-down 上下 (roller/honeycomb/shade), blind = slats with tilt 百葉 */
+export type CoverStyle = "curtain" | "roller" | "blind";
 
 export interface Room {
   id: string;
@@ -38,6 +41,8 @@ export interface Item {
   length?: number;
   /** User colour override (#rrggbb). Wins over HA-reported colour; for on/off-only lights (Shelly, Sonoff). */
   color?: string | null;
+  /** Cover drawing style override; guessed from HA attributes when unset. */
+  coverStyle?: CoverStyle | null;
   kind: ItemKind;
   fixture?: FixtureType;
   /** For generic items: which attribute to show instead of state. */

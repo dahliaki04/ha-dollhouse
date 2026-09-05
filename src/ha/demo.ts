@@ -41,8 +41,8 @@ export function demoLayout(hass: HassLike): Layout {
   const strip = layout.items.find((i) => i.entityId === "light.living_strip");
   if (strip) Object.assign(strip, { length: 2.5, x: 3 * m, y: 0.4 * m });
   // Make the living/dining partition thinner so the override path is exercised.
-  layout.wallThickness["w:r_dining|r_living|1"] = 0.1;
+  layout.wallThickness["w:r_master|r_kid|1"] = 0.1; // master right edge (1) shared with kid
   // Open-plan: living ↔ dining and dining ↔ kitchen are boundaries only.
-  layout.wallVirtual = { "w:r_dining|r_living|1": true, "w:r_dining|r_kitchen|1": true };
+  layout.wallVirtual = { "w:r_dining|r_living|3": true, "w:r_dining|r_kitchen|1": true }; // dining left edge (3) ↔ living, right edge (1) ↔ kitchen
   return layout;
 }

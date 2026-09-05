@@ -391,6 +391,7 @@ export function Canvas2D(p: Canvas2DProps) {
   const startRoomDrag = (e: React.PointerEvent, room: Room) => {
     if (tool !== "select" || e.button !== 0 || p.readOnly) return;
     if (layout.locked) { e.stopPropagation(); p.onSelect({ kind: "room", id: room.id }); return; }
+    if (layout.locked) { e.stopPropagation(); p.onSelect({ kind: "room", id: room.id }); return; }
     e.stopPropagation();
     svgRef.current!.setPointerCapture(e.pointerId);
     p.onSelect({ kind: "room", id: room.id });

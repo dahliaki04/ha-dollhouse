@@ -347,9 +347,9 @@ function RoomPanel(p: SidebarProps & { room: Room }) {
           <NumberField label={t("天花板高 (m)")} value={room.height ?? layout.wallDefaults.height} step={0.1} onChange={(v) => p.onCommit(updateRoom(layout, room.id, { height: v }))} />
           <div className="dh-field"><label>{t("地板色")}</label><input type="color" value={room.color ?? "#f8fafc"} onChange={(e) => p.onCommit(updateRoom(layout, room.id, { color: e.target.value }))} /></div>
         </div>
-        <div className="dh-muted">{t("面積約 {a} m²，{n} 個頂點（選取後可拖頂點）", { a: (Math.abs(area(room)) * layout.metresPerUnit ** 2).toFixed(1), n: room.points.length })}</div>
+        <div className="dh-muted">{t("面積約 {a} m²，{n} 個頂點（選取後可拖頂點）", { a: (Math.abs(area(room)) * layout.metresPerUnit ** 2).toFixed(1), n: room.points.length })}{layout.locked ? " · " + t("平面圖已鎖定") : ""}</div>
         <div className="dh-row" style={{ marginTop: 10 }}>
-          <button className="dh-btn danger" onClick={() => { p.onCommit(removeRoom(layout, room.id)); p.onSelect(null); p.onNotify?.(t("已刪除房間，可用工具列的復原鍵還原")); }}>{t("刪除房間")}</button>
+          <button className="dh-btn danger" disabled={!!layout.locked} title={layout.locked ? t("平面圖已鎖定") : undefined} onClick={() => { p.onCommit(removeRoom(layout, room.id)); p.onSelect(null); p.onNotify?.(t("已刪除房間，可用工具列的復原鍵還原")); }}>{t("刪除房間")}</button>
         </div>
       </section>
       <section>

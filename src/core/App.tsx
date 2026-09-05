@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { emptyLayout, type Item, type Layout, type Point } from "../domain/types";
 import { deriveWalls } from "../domain/walls";
-import { resolveKind } from "../domain/entities";
-import { domainOf, type HassLike, type LayoutStore } from "../ha/types";
+import type { HassLike, LayoutStore } from "../ha/types";
 import { Canvas2D } from "./Canvas2D";
 import { Sidebar, TextField } from "./Sidebar";
 import { Mark } from "./Mark";
@@ -21,8 +20,6 @@ export interface AppProps {
   render3D?: (props: { layout: Layout; hass: HassLike }) => React.ReactNode;
   initialView?: "2d" | "3d";
 }
-
-const TOGGLE_DOMAINS = new Set(["light", "switch", "fan", "cover", "media_player", "lock", "humidifier"]);
 
 export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps) {
   const [state, dispatch] = useEditor(emptyLayout(), initialView ?? "2d");
@@ -100,14 +97,8 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
     setTool("select");
   };
 
-  const onTap = (item: Item) => {
-    const dom = domainOf(item.entityId);
-    if (TOGGLE_DOMAINS.has(dom)) hass.callService(dom, "toggle", { entity_id: item.entityId });
-    else if (resolveKind(item, hass) === "climate" && !onMoreInfo) {
-      const s = hass.states[item.entityId];
-      hass.callService("climate", "set_hvac_mode", { entity_id: item.entityId, hvac_mode: s?.state === "off" ? "cool" : "off" });
-    } else onMoreInfo?.(item.entityId);
-  };
+  // Edit mode: a tap only selects (switching devices happens in view mode). Double-tap still opens more-info.
+  const onTap = (_item: Item) => {};
 
   // Keyboard: delete, undo/redo, escape.
   useEffect(() => {
@@ -122,12 +113,12 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
       else if (e.key === "Delete" || e.key === "Backspace") {
         const sel = state.selection;
         if (sel?.kind === "item") { commit(removeItem(state.layout, sel.id)); select(null); notify({ text: t("已移除裝置"), action: { label: t("復原"), onClick: () => dispatch({ type: "undo" }) } }); }
-        if (sel?.kind === "room") { commit(removeRoom(state.layout, sel.id)); select(null); notify({ text: t("已刪除房間"), action: { label: t("復原"), onClick: () => dispatch({ type: "undo" }) } }); }
+        if (sel?.kind === "room" && !state.layout.locked) { commit(removeRoom(state.layout, sel.id)); select(null); notify({ text: t("已刪除房間"), action: { label: t("復原"), onClick: () => dispatch({ type: "undo" }) } }); }
         if (sel?.kind === "furniture") { commit(removeFurniture(state.layout, sel.id)); select(null); notify({ text: t("已刪除家具"), action: { label: t("復原"), onClick: () => dispatch({ type: "undo" }) } }); }
       } else if (e.key === "Escape") { select(null); setTool("select"); setPlacing(false); }
       else if (e.key === "v") setTool("select");
-      else if (e.key === "r") setTool("rect");
-      else if (e.key === "p") setTool("polygon");
+      else if (e.key === "r" && !state.layout.locked) setTool("rect");
+      else if (e.key === "p" && !state.layout.locked) setTool("polygon");
       else if (e.key === "m" && state.layout.background) setTool("magic");
     };
     window.addEventListener("keydown", onKey);
@@ -152,8 +143,9 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
     }
   };
 
+  const roomTool = (tool: Tool) => tool === "rect" || tool === "polygon" || tool === "magic";
   const toolBtn = (tool: Tool, label: string, key: string) => (
-    <button className={`dh-btn${state.tool === tool ? " on" : ""}`} title={t("快捷鍵 {key}", { key })} onClick={() => setTool(tool)}>{label}</button>
+    <button className={`dh-btn${state.tool === tool ? " on" : ""}`} disabled={!!state.layout.locked && roomTool(tool)} title={t("快捷鍵 {key}", { key })} onClick={() => setTool(tool)}>{label}</button>
   );
 
   if (mode === "view" && loaded) {
@@ -180,10 +172,11 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
       <div className="dh-toolbar">
         <span className="dh-title" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Mark /> Dollhouse</span>
         <span className="dh-name" style={{ width: 200 }}><TextField label="" value={state.layout.name} onSave={(v) => commit({ ...state.layout, name: v })} /></span>
+        <button className={`dh-btn${state.layout.locked ? " on" : ""}`} title={state.layout.locked ? t("平面圖已鎖定：房間不能移動、變形、新增或刪除") : t("鎖定平面圖，避免誤動房間")} aria-pressed={!!state.layout.locked} onClick={() => { commit({ ...state.layout, locked: !state.layout.locked }); if (!state.layout.locked) setTool("select"); }}>{state.layout.locked ? t("🔒 已鎖定") : t("🔓 鎖定")}</button>
         {toolBtn("select", t("選取"), "V")}
         {toolBtn("rect", t("矩形房間"), "R")}
         {toolBtn("polygon", t("多邊形房間"), "P")}
-        <button className={`dh-btn${state.tool === "magic" ? " on" : ""}`} disabled={!state.layout.background} title={state.layout.background ? t("點底圖上的房間內部，自動框出") : t("先上傳底圖")} onClick={() => setTool("magic")}>{t("點選房間")}</button>
+        <button className={`dh-btn${state.tool === "magic" ? " on" : ""}`} disabled={!state.layout.background || !!state.layout.locked} title={state.layout.background ? t("點底圖上的房間內部，自動框出") : t("先上傳底圖")} onClick={() => setTool("magic")}>{t("點選房間")}</button>
         <button className="dh-btn" aria-label={t("復原")} title={t("復原 (Ctrl+Z)")} disabled={!state.past.length} onClick={() => dispatch({ type: "undo" })}>↶</button>
         <button className="dh-btn" aria-label={t("重做")} title={t("重做 (Ctrl+Y)")} disabled={!state.future.length} onClick={() => dispatch({ type: "redo" })}>↷</button>
         <button className={`dh-btn${state.view === "2d" ? " on" : ""}`} onClick={() => dispatch({ type: "view", view: "2d" })}>2D</button>

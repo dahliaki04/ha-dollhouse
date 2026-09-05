@@ -279,6 +279,14 @@ export const en: Record<string, string> = {
   "只顯示前 {n} 個，輸入關鍵字縮小範圍": "Showing the first {n}; type to narrow down",
   "Home Assistant area": "Home Assistant area",
 
+  // lock
+  "🔒 已鎖定": "🔒 Locked",
+  "🔓 鎖定": "🔓 Lock",
+  "鎖定平面圖，避免誤動房間": "Lock the floor plan so rooms cannot be moved by accident",
+  "平面圖已鎖定：房間不能移動、變形、新增或刪除": "Floor plan locked: rooms cannot be moved, reshaped, added or deleted",
+  "平面圖已鎖定，先解鎖才能改房間": "Floor plan is locked; unlock to change rooms",
+  "平面圖已鎖定": "Floor plan locked",
+
   // view mode / card
   "編輯": "Edit",
   "完成": "Done",

@@ -1,6 +1,6 @@
 import type { Item, Layout } from "../domain/types";
 import { resolveKind } from "../domain/entities";
-import { coverInward, coverView, wallInward } from "../domain/covers";
+import { coverInward, coverView, curtainPanels, wallInward } from "../domain/covers";
 import { effectiveBeam, hugsWall } from "../domain/entities";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
 
@@ -191,12 +191,11 @@ function CoverGlyph({ item, hass, m, flip }: { item: Item; hass: HassLike; m: nu
   const pct = `${Math.round(v.open * 100)}%`;
   let body: React.ReactNode;
   if (v.style === "curtain") {
-    const panel = ((1 - v.open) * L) / 2;
+    const panels = curtainPanels(L, v.open, item.coverDraw, flip);
     body = (
       <>
         <rect x={-L / 2} y={-t / 2} width={L} height={t} fill={glass} stroke="#7dd3fc" strokeWidth={0.015 * m} />
-        <path d={wave(-L / 2, panel, t, m)} fill={fabric} />
-        <path d={wave(L / 2 - panel, panel, t, m)} fill={fabric} />
+        {panels.map((pn, i) => <path key={i} d={wave(pn.x0, pn.w, t, m)} fill={fabric} />)}
       </>
     );
   } else if (v.style === "roller") {

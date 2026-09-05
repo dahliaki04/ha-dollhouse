@@ -15,6 +15,9 @@ export type ItemKind = "auto" | "light" | "climate" | "presence" | "cover" | "ge
 /** curtain = side-draw 橫拉, roller = top-down 上下 (roller/honeycomb/shade), blind = slats with tilt 百葉 */
 export type CoverStyle = "curtain" | "roller" | "blind";
 
+/** Curtain stacking: center = 對開 (two panels), left / right = single panel gathers on that side, as seen from inside the room. */
+export type CoverDraw = "center" | "left" | "right";
+
 /** Where the object is mounted. Drives the 3D height (and the default z). */
 export type Mount = "ceiling" | "wall" | "floor";
 
@@ -53,6 +56,8 @@ export interface Item {
   color?: string | null;
   /** Cover drawing style override; guessed from HA attributes when unset. */
   coverStyle?: CoverStyle | null;
+  /** Curtain stacking side (curtain style only). Default center. */
+  coverDraw?: CoverDraw | null;
   kind: ItemKind;
   fixture?: FixtureType;
   /** For generic items: which attribute to show instead of state. */

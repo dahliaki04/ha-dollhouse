@@ -5,7 +5,7 @@ import type { Layout, Point } from "../domain/types";
 import { deriveWalls, nearestWall } from "../domain/walls";
 import { bbox, centroid } from "../domain/geometry";
 import { effectiveBeam, effectiveHeight, hasBeam, hugsWall, resolveKind } from "../domain/entities";
-import { coverInward, coverView, wallInward } from "../domain/covers";
+import { coverInward, coverView, curtainPanels, wallInward } from "../domain/covers";
 import type { HassLike } from "../ha/types";
 import { brightness01, lightColor } from "./markers";
 
@@ -375,14 +375,12 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       rail.position.set(0, top + 0.02, 0.05);
       group.add(rail);
       if (v.style === "curtain") {
-        const pw = ((1 - v.open) * L) / 2;
-        if (pw > 0.01) {
-          for (const sgn of [-1, 1]) {
-            const p = new THREE.Mesh(new THREE.BoxGeometry(pw, H, 0.05), fabric);
-            p.position.set(sgn * (L / 2 - pw / 2), top - H / 2, 0.05);
-            p.castShadow = true;
-            group.add(p);
-          }
+        for (const pn of curtainPanels(L, v.open, item.coverDraw, inward.flip)) {
+          if (pn.w < 0.01) continue;
+          const p = new THREE.Mesh(new THREE.BoxGeometry(pn.w, H, 0.05), fabric);
+          p.position.set(pn.x0 + pn.w / 2, top - H / 2, 0.05);
+          p.castShadow = true;
+          group.add(p);
         }
       } else if (v.style === "roller") {
         const drop = (1 - v.open) * H;

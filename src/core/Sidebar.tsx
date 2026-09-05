@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { CoverStyle, FixtureType, Item, ItemKind, Layout, Wall } from "../domain/types";
+import type { CoverDraw, CoverStyle, FixtureType, Item, ItemKind, Layout, Wall } from "../domain/types";
 import { coverView, guessCoverStyle } from "../domain/covers";
 import { autoPlace, defaultBeam, defaultMount, effectiveHeight, entitiesInArea, hasBeam, makeItem, mountHeight, PLACEABLE_DOMAINS, resolveKind } from "../domain/entities";
 import type { Beam } from "../domain/types";
@@ -329,6 +329,17 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
                 {STYLES.map((s) => <button key={s.v} className={`dh-btn small${item.coverStyle === s.v ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { coverStyle: s.v }))}>{s.label}</button>)}
               </div>
             </div>
+            {(item.coverStyle ?? guessed) === "curtain" && (() => {
+              const DRAWS: { v: CoverDraw; label: string }[] = [{ v: "center", label: "對開" }, { v: "left", label: "左收" }, { v: "right", label: "右收" }];
+              return (
+                <div className="dh-field">
+                  <label>開法（站在房間內看窗）</label>
+                  <div className="dh-row">
+                    {DRAWS.map((d) => <button key={d.v} className={`dh-btn small${(item.coverDraw ?? "center") === d.v ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { coverDraw: d.v }))}>{d.label}</button>)}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="dh-field">
               <label>窗寬 (m)</label>
               <div className="dh-row">

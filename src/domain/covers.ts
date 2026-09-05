@@ -1,4 +1,4 @@
-import type { CoverStyle, Item, Layout, Point } from "./types";
+import type { CoverDraw, CoverStyle, Item, Layout, Point } from "./types";
 import type { HassLike } from "../ha/types";
 import { pointInPolygon } from "./geometry";
 
@@ -68,4 +68,19 @@ export function wallInward(layout: Layout, item: Pick<Item, "x" | "y" | "rotatio
   const inMinus = layout.rooms.some((r) => pointInPolygon(minus, r.points));
   if (!inPlus && inMinus) return { n: [-n[0], -n[1]], flip: true };
   return { n, flip: false };
+}
+
+/**
+ * Fabric spans of a curtain in local x (from -L/2 to +L/2), given the open fraction.
+ * `flip` comes from wallInward: when the room is on the local -y side, the viewer's
+ * left is local +x, so left/right are mirrored to stay correct from inside the room.
+ */
+export function curtainPanels(L: number, open: number, draw: CoverDraw | null | undefined, flip: boolean): { x0: number; w: number }[] {
+  const closedW = (1 - open) * L;
+  if (closedW <= 1e-6) return [];
+  const mode = draw ?? "center";
+  if (mode === "center") return [{ x0: -L / 2, w: closedW / 2 }, { x0: L / 2 - closedW / 2, w: closedW / 2 }];
+  const leftSign = flip ? 1 : -1; // which local-x side is "left" for someone inside the room
+  const side = mode === "left" ? leftSign : -leftSign;
+  return side < 0 ? [{ x0: -L / 2, w: closedW }] : [{ x0: L / 2 - closedW, w: closedW }];
 }

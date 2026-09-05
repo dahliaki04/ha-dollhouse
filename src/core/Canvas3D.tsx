@@ -22,6 +22,7 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
   const mount = useRef<HTMLDivElement>(null);
   const three = useRef<{ renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.OrthographicCamera; controls: OrbitControls } | null>(null);
   const [, bump] = useState(0);
+  const placed = useRef(false);
 
   // Renderer lifecycle.
   useEffect(() => {
@@ -101,7 +102,8 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
     const size = layoutSizeM(layout);
     const target = new THREE.Vector3(size.cx, 0, size.cz);
     const sph = new THREE.Spherical().setFromVector3(t.camera.position.clone().sub(target));
-    const polar = sph.radius > 1 ? sph.phi : 0.62; // ~35° elevation on first placement
+    const polar = placed.current ? sph.phi : 0.95; // first placement: ~36° elevation
+    placed.current = true;
     const az = Math.PI / 4 + quarter * (Math.PI / 2);
     sph.set(60, polar, az);
     t.camera.position.copy(target).add(new THREE.Vector3().setFromSpherical(sph));

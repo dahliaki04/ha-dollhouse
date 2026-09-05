@@ -283,6 +283,16 @@ export const en: Record<string, string> = {
   "只顯示前 {n} 個，輸入關鍵字縮小範圍": "Showing the first {n}; type to narrow down",
   "Home Assistant area": "Home Assistant area",
 
+  // status frame content
+  "狀態框內容": "Frame contents",
+  "還沒有內容。下面搜尋任何 entity 加進來。": "Nothing yet. Search any entity below to add it.",
+  "上移": "Move up",
+  "下移": "Move down",
+  "改顯示在平面圖上": "Show on the plan instead",
+  "移出": "Unlist",
+  "搜尋 entity 加進狀態框…": "Search an entity to add to the frame…",
+  "點一列可以到裝置面板改顯示的屬性、標籤。": "Tap a row to open the device panel and change the attribute or label.",
+
   // status frame
   "顯示位置": "Shown",
   "（預設）": " (default)",

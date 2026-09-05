@@ -55,6 +55,12 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
       if (raw && typeof raw === "object" && (raw as Layout).version === 1) dispatch({ type: "load", layout: raw as Layout });
       else setModeState("edit");
       if (raw && (raw as Layout).rooms?.length === 0) setModeState("edit");
+      // Dev harness hook: ?select=room opens the editor with the first room selected (for screenshots).
+      if (import.meta.env.DEV && new URLSearchParams(location.search).get("select") === "room" && raw) {
+        setModeState("edit");
+        const first = (raw as Layout).rooms?.[0];
+        if (first) setTimeout(() => dispatch({ type: "select", selection: { kind: "room", id: first.id } }), 0);
+      }
       setLoaded(true);
     });
     return () => { alive = false; };

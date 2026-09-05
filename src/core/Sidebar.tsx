@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { langFromHass, readLangOverride, setLang, t, writeLangOverride, type Lang } from "../i18n";
 import type { CoverDraw, CoverStyle, FixtureType, Item, ItemKind, Layout, Wall } from "../domain/types";
 import { coverView, guessCoverStyle } from "../domain/covers";
-import { autoPlace, defaultBeam, defaultMount, effectiveHeight, effectiveShowIn, entitiesInArea, hasBeam, makeItem, mountHeight, resolveKind } from "../domain/entities";
+import { autoPlace, defaultBeam, defaultMount, effectiveHeight, effectiveShowIn, entitiesInArea, frameItems, frameValue, hasBeam, makeItem, mountHeight, resolveKind } from "../domain/entities";
 import type { Beam } from "../domain/types";
 import type { Mount } from "../domain/types";
 import { newId } from "../domain/types";
@@ -358,6 +358,7 @@ function RoomPanel(p: SidebarProps & { room: Room }) {
           </div>
           <div className="dh-muted">{t("這間的感測數值、人在、開關狀態集中在這個框，可在畫布上拖動。")}</div>
         </div>
+        <FrameEditor layout={layout} hass={hass} room={room} onCommit={p.onCommit} onSelect={p.onSelect} />
         <div className="dh-muted">{t("面積約 {a} m²，{n} 個頂點（選取後可拖頂點）", { a: (Math.abs(area(room)) * layout.metresPerUnit ** 2).toFixed(1), n: room.points.length })}{layout.locked ? " · " + t("平面圖已鎖定") : ""}</div>
         <div className="dh-row" style={{ marginTop: 10 }}>
           <button className="dh-btn danger" disabled={!!layout.locked} title={layout.locked ? t("平面圖已鎖定") : undefined} onClick={() => { p.onCommit(removeRoom(layout, room.id)); p.onSelect(null); p.onNotify?.(t("已刪除房間，可用工具列的復原鍵還原")); }}>{t("刪除房間")}</button>
@@ -680,6 +681,77 @@ function FurniturePanel(p: SidebarProps & { f: Furniture }) {
         <button className="dh-btn danger" onClick={() => { p.onCommit(removeFurniture(layout, f.id)); p.onSelect(null); p.onNotify?.(t("已刪除家具，可用復原鍵還原")); }}>{t("刪除")}</button>
       </div>
     </section>
+  );
+}
+
+/** Pick what a room's status frame shows: any HA entity, ordered, removable. */
+function FrameEditor({ layout, hass, room, onCommit, onSelect }: { layout: Layout; hass: HassLike; room: Room; onCommit: (l: Layout) => void; onSelect: (s: Selection) => void }) {
+  const [q, setQ] = useState("");
+  const rows = frameItems(layout, room, hass);
+  const inFrame = new Set(rows.map((r) => r.entityId));
+  const needle = q.trim().toLowerCase();
+  const candidates = needle
+    ? Object.keys(hass.states)
+        .filter((id) => !inFrame.has(id))
+        .filter((id) => {
+          const dom = domainOf(id);
+          if (["automation", "script", "scene", "update", "button", "event", "image", "camera", "zone", "tts", "stt", "conversation"].includes(dom)) return false;
+          const hay = `${id} ${friendlyName(hass, id)}`.toLowerCase();
+          return needle.split(/\s+/).every((w) => hay.includes(w));
+        })
+        .slice(0, 25)
+    : [];
+  const c = centroid(room.points);
+  const setOrder = (ordered: Item[]) => {
+    const map = new Map(ordered.map((it, i) => [it.id, i]));
+    onCommit({ ...layout, items: layout.items.map((it) => (map.has(it.id) ? { ...it, order: map.get(it.id) } : it)) });
+  };
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= rows.length) return;
+    const next = rows.slice();
+    [next[i], next[j]] = [next[j], next[i]];
+    setOrder(next);
+  };
+  const add = (entityId: string) => {
+    const jitter = (rows.length % 5) * 0.15 / layout.metresPerUnit;
+    const it = { ...makeItem(hass, entityId, c[0] + jitter, c[1] + jitter), showIn: "frame" as const, order: rows.length };
+    onCommit(addItems(layout, [it]));
+    setQ("");
+  };
+  return (
+    <div className="dh-field" style={{ marginTop: 8 }}>
+      <label>{t("狀態框內容")} ({rows.length})</label>
+      {rows.length === 0 && <div className="dh-muted">{t("還沒有內容。下面搜尋任何 entity 加進來。")}</div>}
+      <ul className="dh-list">
+        {rows.map((it, i) => {
+          const v = frameValue(it, hass);
+          return (
+            <li key={it.id} style={{ gap: 6 }}>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }} onClick={() => onSelect({ kind: "item", id: it.id })} title={it.entityId}>
+                <b>{v.text}</b> <span className="dh-muted">{it.label ?? friendlyName(hass, it.entityId)}</span>
+              </span>
+              <button className="dh-btn small" aria-label={t("上移")} disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
+              <button className="dh-btn small" aria-label={t("下移")} disabled={i === rows.length - 1} onClick={() => move(i, 1)}>↓</button>
+              <button className="dh-btn small" title={t("改顯示在平面圖上")} onClick={() => onCommit(updateItem(layout, it.id, { showIn: "plan" }))}>{t("移出")}</button>
+              <button className="dh-btn small danger" onClick={() => onCommit(removeItem(layout, it.id))}>{t("移除")}</button>
+            </li>
+          );
+        })}
+      </ul>
+      <input value={q} placeholder={t("搜尋 entity 加進狀態框…")} onChange={(e) => setQ(e.target.value)} style={{ marginTop: 6 }} />
+      {candidates.length > 0 && (
+        <ul className="dh-list" style={{ maxHeight: 220, overflow: "auto", border: "1px solid var(--dh-border)", borderRadius: 6, marginTop: 4 }}>
+          {candidates.map((id) => (
+            <li key={id} style={{ gap: 6 }}>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{friendlyName(hass, id)} <span className="dh-muted" style={{ fontSize: 11 }}>{id} · {hass.states[id]?.state}</span></span>
+              <button className="dh-btn small" onClick={() => add(id)}>{t("加入")}</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="dh-muted">{t("點一列可以到裝置面板改顯示的屬性、標籤。")}</div>
+    </div>
   );
 }
 

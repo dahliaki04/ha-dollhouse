@@ -70,6 +70,8 @@ export interface Item {
   repeat?: Repeat | null;
   /** Where the item is shown: on the plan at its position, or as a row in its room's status frame. Default by kind. */
   showIn?: "plan" | "frame" | null;
+  /** Row order inside the room status frame (lower first). */
+  order?: number;
   /** Rotation in degrees, for wall lights / strips. */
   rotation?: number;
   /** Physical length in metres (strips). Default 1.0. */

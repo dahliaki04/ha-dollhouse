@@ -222,7 +222,11 @@ export function effectiveShowIn(item: Item, hass: HassLike): "plan" | "frame" {
 
 /** Items listed in a room's status frame (by position inside the room). */
 export function frameItems(layout: Layout, room: Room, hass: HassLike): Item[] {
-  return layout.items.filter((i) => effectiveShowIn(i, hass) === "frame" && pointInPolygon([i.x, i.y], room.points));
+  return layout.items
+    .map((i, idx) => ({ i, idx }))
+    .filter(({ i }) => effectiveShowIn(i, hass) === "frame" && pointInPolygon([i.x, i.y], room.points))
+    .sort((a, b) => (a.i.order ?? a.idx) - (b.i.order ?? b.idx))
+    .map(({ i }) => i);
 }
 
 /** Display value for a frame row. */

@@ -16,8 +16,12 @@ export interface Repeat {
   pattern: "row" | "grid";
   /** grid columns */
   cols?: number;
-  /** metres between fixtures */
+  /** grid rows (count = rows × cols when set) */
+  rows?: number;
+  /** metres between fixtures along the row */
   spacing: number;
+  /** metres between rows (grid); defaults to spacing */
+  spacingY?: number;
 }
 
 export type ItemKind = "auto" | "light" | "climate" | "presence" | "cover" | "generic";

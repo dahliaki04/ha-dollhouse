@@ -188,21 +188,24 @@ export function roomOfPoint(layout: Layout, p: Point): Room | undefined {
  */
 export function fixturePositions(item: Item, metresPerUnit: number): Point[] {
   const r = item.repeat;
-  if (!r || r.count <= 1) return [[item.x, item.y]];
+  if (!r) return [[item.x, item.y]];
   const gap = (r.spacing || 0.8) / metresPerUnit;
+  const gapY = (r.spacingY || r.spacing || 0.8) / metresPerUnit;
   const th = ((item.rotation ?? 0) * Math.PI) / 180;
   const ux = Math.cos(th);
   const uy = Math.sin(th);
   const vx = -Math.sin(th);
   const vy = Math.cos(th);
-  const cols = r.pattern === "grid" ? Math.max(1, Math.min(r.count, r.cols ?? Math.ceil(Math.sqrt(r.count)))) : r.count;
-  const rows = Math.ceil(r.count / cols);
+  const cols = r.pattern === "grid" ? Math.max(1, r.cols ?? Math.ceil(Math.sqrt(r.count))) : Math.max(1, r.count);
+  const rows = r.pattern === "grid" ? Math.max(1, r.rows ?? Math.ceil(r.count / cols)) : 1;
+  const count = r.pattern === "grid" ? rows * cols : Math.max(1, r.count);
+  if (count <= 1) return [[item.x, item.y]];
   const out: Point[] = [];
-  for (let i = 0; i < r.count; i++) {
+  for (let i = 0; i < count; i++) {
     const c = i % cols;
     const rr = Math.floor(i / cols);
     const a = (c - (cols - 1) / 2) * gap;
-    const b = (rr - (rows - 1) / 2) * gap;
+    const b = (rr - (rows - 1) / 2) * gapY;
     out.push([item.x + a * ux + b * vx, item.y + a * uy + b * vy]);
   }
   return out;

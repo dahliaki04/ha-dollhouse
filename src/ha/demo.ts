@@ -37,6 +37,8 @@ export function demoLayout(hass: HassLike): Layout {
   if (cove) Object.assign(cove, { mount: "wall", z: 2.3, length: 3, x: 6.75 * m, y: 5 * m, rotation: 0 }); // on the kid room north wall, throws up
   const ac = layout.items.find((i) => i.entityId === "climate.daikin_living");
   if (ac) ac.mount = "ceiling"; // Daikin cassette
+  const dl1 = layout.items.find((i) => i.entityId === "light.living_downlight_1");
+  if (dl1) Object.assign(dl1, { repeat: { count: 6, pattern: "grid", rows: 2, cols: 3, spacing: 1.4, spacingY: 1.6 }, x: 3 * m, y: 2.3 * m });
   const rack = layout.items.find((i) => i.entityId === "switch.drying_rack");
   if (rack) Object.assign(rack, { kind: "light", fixture: "downlight", repeat: { count: 3, pattern: "row", spacing: 0.9 }, x: 7.5 * m, y: 1.2 * m, label: "餐廳崁燈 ×3", color: "#f6f1e6" });
   const kitchen = layout.items.find((i) => i.entityId === "light.kitchen_downlight");

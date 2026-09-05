@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { CoverDraw, CoverStyle, FixtureType, Item, ItemKind, Layout, Wall } from "../domain/types";
 import { coverView, guessCoverStyle } from "../domain/covers";
-import { autoPlace, defaultBeam, defaultMount, effectiveHeight, entitiesInArea, hasBeam, makeItem, mountHeight, PLACEABLE_DOMAINS, resolveKind } from "../domain/entities";
+import { autoPlace, defaultBeam, defaultMount, effectiveHeight, entitiesInArea, hasBeam, makeItem, mountHeight, resolveKind } from "../domain/entities";
 import type { Beam } from "../domain/types";
 import type { Mount } from "../domain/types";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
@@ -10,6 +10,8 @@ import { KELVIN_PRESETS, kelvinToHex, lightColor } from "./markers";
 import { addFurniture, addItems, applyThickness, applyVirtual, removeFurniture, removeItem, removeRoom, resetThickness, setBackground, updateFurniture, updateItem, updateRoom, type Selection } from "./useEditor";
 import { FURNITURE, FURNITURE_GROUPS, makeFurniture, type Furniture, type FurnitureType } from "../domain/furniture";
 import { centroid } from "../domain/geometry";
+import { EntityPicker } from "./EntityPicker";
+import { VERSION } from "../version";
 
 export interface SidebarProps {
   layout: Layout;
@@ -70,7 +72,6 @@ function LayoutPanel(p: SidebarProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const [addEntity, setAddEntity] = useState("");
 
   const onFile = async (f: File | undefined) => {
     if (!f) return;
@@ -84,8 +85,6 @@ function LayoutPanel(p: SidebarProps) {
     }
   };
 
-  const allEntities = Object.keys(hass.states).filter((id) => PLACEABLE_DOMAINS.has(domainOf(id))).sort();
-  const placed = new Set(layout.items.map((i) => i.entityId));
 
   return (
     <>
@@ -148,19 +147,15 @@ function LayoutPanel(p: SidebarProps) {
 
       <section>
         <h3>加入裝置</h3>
-        <div className="dh-field">
-          <select value={addEntity} onChange={(e) => setAddEntity(e.target.value)}>
-            <option value="">選一個 entity…</option>
-            {allEntities.map((id) => <option key={id} value={id} disabled={placed.has(id)}>{friendlyName(hass, id)} ({id})</option>)}
-          </select>
-        </div>
-        <button className="dh-btn" disabled={!addEntity} onClick={() => {
-          const item = makeItem(hass, addEntity, layout.canvas.width / 2, layout.canvas.height / 2);
-          p.onCommit(addItems(layout, [item]));
-          p.onSelect({ kind: "item", id: item.id });
-          setAddEntity("");
-        }}>放到畫布中央</button>
-        <div className="dh-muted" style={{ marginTop: 6 }}>比較快的做法：選一間房間 → 連結 HA area → 一鍵填入。</div>
+        <EntityPicker hass={hass} layout={layout} onAdd={(ids) => {
+          const cx = layout.canvas.width / 2;
+          const cy = layout.canvas.height / 2;
+          const step = 0.6 / layout.metresPerUnit;
+          const items = ids.map((id, i) => makeItem(hass, id, cx + (i % 4) * step, cy + Math.floor(i / 4) * step));
+          p.onCommit(addItems(layout, items));
+          if (items.length === 1) p.onSelect({ kind: "item", id: items[0].id });
+        }} />
+        <div className="dh-muted" style={{ marginTop: 6 }}>先選一間房間再加，會直接放進那間。</div>
       </section>
 
       <section>
@@ -188,8 +183,24 @@ function LayoutPanel(p: SidebarProps) {
           <input ref={importRef} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && p.onImport(e.target.files[0])} />
         </div>
       </section>
+
+      <section>
+        <div className="dh-muted">Dollhouse v{VERSION} · WebGL {webglOk() ? "可用" : "不可用"} · 視窗 {typeof window !== "undefined" ? `${window.innerWidth}×${window.innerHeight}` : ""}</div>
+      </section>
     </>
   );
+}
+
+let webglCache: boolean | null = null;
+function webglOk(): boolean {
+  if (webglCache !== null) return webglCache;
+  try {
+    const c = document.createElement("canvas");
+    webglCache = !!(c.getContext("webgl2") || c.getContext("webgl"));
+  } catch {
+    webglCache = false;
+  }
+  return webglCache;
 }
 
 function WallQuickSelect({ walls, onSelect }: { walls: Wall[]; onSelect: (s: Selection) => void }) {
@@ -309,17 +320,14 @@ function RoomPanel(p: SidebarProps & { room: Room }) {
           </div>
         ))}
       </section>
-      {room.areaId && areaEntities.length > 0 && (
-        <section>
-          <h3>這個 area 的裝置</h3>
-          <ul className="dh-list">
-            {areaEntities.map((e) => {
-              const it = layout.items.find((i) => i.entityId === e);
-              return <li key={e} onClick={() => it && p.onSelect({ kind: "item", id: it.id })}><span>{friendlyName(hass, e)}</span><span className="dh-muted">{it ? "已放" : "未放"}</span></li>;
-            })}
-          </ul>
-        </section>
-      )}
+      <section>
+        <h3>加入裝置到這間</h3>
+        <EntityPicker hass={hass} layout={layout} room={room} onAdd={(ids) => {
+          const items = autoPlace(hass, room, ids, layout.items, 1.0 / layout.metresPerUnit, p.walls);
+          p.onCommit(addItems(layout, items));
+          if (items.length === 1) p.onSelect({ kind: "item", id: items[0].id });
+        }} />
+      </section>
     </>
   );
 }

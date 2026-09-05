@@ -24,12 +24,19 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
   const mount = useRef<HTMLDivElement>(null);
   const three = useRef<{ renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.OrthographicCamera; controls: OrbitControls } | null>(null);
   const [, bump] = useState(0);
+  const [fatal, setFatal] = useState<string | null>(null);
   const placed = useRef(false);
 
   // Renderer lifecycle.
   useEffect(() => {
     const el = mount.current!;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (e) {
+      setFatal(`這個瀏覽器無法建立 WebGL：${(e as Error).message}`);
+      return;
+    }
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -67,8 +74,12 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
   useEffect(() => {
     const t = three.current;
     if (!t) return;
-    buildScene(t.scene, layout, hass);
-    frame();
+    try {
+      buildScene(t.scene, layout, hass);
+      frame();
+    } catch (e) {
+      setFatal(`3D 場景建立失敗：${(e as Error).message}`);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, hass.states]);
 
@@ -145,6 +156,7 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
         <button className="dh-btn" onClick={() => { const t = three.current; if (t) { t.camera.zoom = 1; t.camera.updateProjectionMatrix(); } placeCamera(0); }}>重置</button>
       </div>
       <div className="dh-hint">拖曳旋轉，滾輪或雙指縮放，右鍵或雙指拖曳平移。狀態即時更新。</div>
+      {fatal && <div className="dh-empty"><div><b>3D 無法顯示</b><br />{fatal}</div></div>}
     </div>
   );
 }

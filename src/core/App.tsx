@@ -171,7 +171,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
             onPlaced={() => setPlacing(false)}
           />
         ) : (
-          <div className="dh-canvas-wrap">{render3D({ layout: state.layout, hass })}</div>
+          <div className="dh-canvas-wrap" style={{ minHeight: 320 }}>{render3D({ layout: state.layout, hass })}</div>
         )}
         <Sidebar layout={state.layout} hass={hass} walls={walls} selection={state.selection} onCommit={commit} onSelect={select} onExport={onExport} onImport={onImport} onStartScale={() => setTool("scale")} placing={placing} onPlacing={setPlacing} />
       </div>

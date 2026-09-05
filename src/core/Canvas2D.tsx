@@ -409,7 +409,7 @@ export function Canvas2D(p: Canvas2DProps) {
   const cursor = tool === "select" ? (drag?.kind === "pan" ? "grabbing" : "default") : "crosshair";
 
   return (
-    <div className="dh-canvas-wrap" ref={wrapRef}>
+    <div className="dh-canvas-wrap" ref={wrapRef} style={{ minHeight: 320 }}>
       <svg
         ref={svgRef}
         viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}

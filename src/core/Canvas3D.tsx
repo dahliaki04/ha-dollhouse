@@ -7,6 +7,7 @@ import { deriveWalls, nearestWall } from "../domain/walls";
 import { bbox, centroid, pointInPolygon } from "../domain/geometry";
 import { effectiveBeam, effectiveHeight, effectiveShowIn, fixturePositions, frameItems, frameValue, hasBeam, hugsWall, resolveKind } from "../domain/entities";
 import { coverInward, coverView, curtainPanels, wallInward } from "../domain/covers";
+import { frameLayout, frameHeight, FRAME_W } from "./RoomFrame";
 import type { HassLike } from "../ha/types";
 import { brightness01, lightColor } from "./markers";
 import { buildFurniture } from "./furniture3d";
@@ -98,7 +99,7 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
     const el = mount.current!;
     const w = el.clientWidth || 1;
     const h = el.clientHeight || 1;
-    const size = layoutSizeM(layout);
+    const size = layoutSizeM(layout, hass);
     const span = Math.max(size.w, size.h) * 0.75;
     const aspect = w / h;
     t.camera.left = -span * aspect;
@@ -115,7 +116,7 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
   const placeCamera = (quarter: number) => {
     const t = three.current;
     if (!t) return;
-    const size = layoutSizeM(layout);
+    const size = layoutSizeM(layout, hass);
     const target = new THREE.Vector3(size.cx, 0, size.cz);
     const sph = new THREE.Spherical().setFromVector3(t.camera.position.clone().sub(target));
     const polar = placed.current ? sph.phi : 0.95; // first placement: ~36° elevation
@@ -219,9 +220,10 @@ function poolTexture(): THREE.Texture {
   return poolTex;
 }
 
-function layoutSizeM(layout: Layout) {
+function layoutSizeM(layout: Layout, hass?: HassLike) {
   const mpu = layout.metresPerUnit;
   const pts: Point[] = layout.rooms.flatMap((r) => r.points);
+  if (hass) for (const pl of frameLayout(layout, hass, 1 / mpu)) { pts.push(pl.pos); pts.push([pl.pos[0] + FRAME_W / mpu, pl.pos[1] + frameHeight(pl.items.length) / mpu]); }
   if (pts.length === 0) return { w: layout.canvas.width * mpu, h: layout.canvas.height * mpu, cx: (layout.canvas.width * mpu) / 2, cz: (layout.canvas.height * mpu) / 2 };
   const b = bbox(pts);
   return { w: b.w * mpu, h: b.h * mpu, cx: (b.x + b.w / 2) * mpu, cz: (b.y + b.h / 2) * mpu };
@@ -279,10 +281,12 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     scene.add(mesh);
     // Room label sprite.
     const c = toM(centroid(room.points));
-    const rows = room.frameHidden ? [] : frameItems(layout, room, hass).slice(0, 5).map((it) => frameValue(it, hass).text);
-    const label = rows.length ? multilineSprite([room.name, ...rows], "#1f2937") : textSprite(room.name, "#1f2937");
-    label.position.set(c[0], rows.length ? 0.3 + rows.length * 0.12 : 0.3, c[1]);
-    scene.add(label);
+    const hasFrame = !room.frameHidden && frameItems(layout, room, hass).length > 0;
+    if (!hasFrame) {
+      const label = textSprite(room.name, "#1f2937");
+      label.position.set(c[0], 0.3, c[1]);
+      scene.add(label);
+    }
   }
 
   const walls = deriveWalls(layout);
@@ -329,6 +333,27 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     });
   }
   scene.userData.cutaway = cutaway;
+
+  // Status callouts: cards outside the house, leader down to the room floor.
+  for (const pl of frameLayout(layout, hass, 1 / mpu)) {
+    const rows = pl.items.slice(0, 6).map((it) => frameValue(it, hass).text);
+    const card = multilineSprite([pl.room.name, ...rows], "#1f2937");
+    const cx = (pl.pos[0] + (FRAME_W / mpu) / 2) * mpu;
+    const cz = (pl.pos[1] + (frameHeight(pl.items.length) / mpu) / 2) * mpu;
+    const cy = 2.0;
+    card.position.set(cx, cy, cz);
+    card.renderOrder = 10;
+    scene.add(card);
+    const [ax, az] = toM(pl.anchor);
+    const pts = [new THREE.Vector3(cx, cy - 0.35, cz), new THREE.Vector3(cx, 0.06, cz), new THREE.Vector3(ax, 0.06, az)];
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const line = new THREE.Line(geo, new THREE.LineDashedMaterial({ color: 0x64748b, dashSize: 0.18, gapSize: 0.12 }));
+    line.computeLineDistances();
+    scene.add(line);
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0x64748b }));
+    dot.position.set(ax, 0.06, az);
+    scene.add(dot);
+  }
 
   // Furniture.
   for (const f of layout.furniture ?? []) {
@@ -599,7 +624,7 @@ function multilineSprite(lines: string[], color: string): THREE.Sprite {
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-  sprite.scale.set((w / 64) * 0.45, (h / 64) * 0.45, 1);
+  sprite.scale.set((w / 64) * 0.58, (h / 64) * 0.58, 1);
   return sprite;
 }
 

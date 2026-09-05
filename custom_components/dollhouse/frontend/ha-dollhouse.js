@@ -10768,16 +10768,18 @@ function Op(s, t) {
   var a;
   const n = [];
   for (const o of Object.values(s.entities)) {
-    if (o.hidden || o.entity_category || (o.area_id ?? (o.device_id ? (a = s.devices[o.device_id]) == null ? void 0 : a.area_id : null)) !== t || !s.states[o.entity_id]) continue;
-    const u = Kn(o.entity_id);
-    if (Mx.has(u)) {
-      if (u === "sensor") {
-        const f = s.states[o.entity_id].attributes.device_class;
-        if (!f || !ab.has(f)) continue;
+    if (o.hidden || o.entity_category || (o.area_id ?? (o.device_id ? (a = s.devices[o.device_id]) == null ? void 0 : a.area_id : null)) !== t) continue;
+    const u = s.states[o.entity_id];
+    if (!u || u.state === "unavailable" || u.state === "unknown") continue;
+    const f = Kn(o.entity_id);
+    if (Mx.has(f)) {
+      if (f === "sensor") {
+        const p = s.states[o.entity_id].attributes.device_class;
+        if (!p || !ab.has(p)) continue;
       }
-      if (u === "binary_sensor") {
-        const f = s.states[o.entity_id].attributes.device_class;
-        if (f && !["occupancy", "motion", "presence", "door", "window", "opening"].includes(f)) continue;
+      if (f === "binary_sensor") {
+        const p = s.states[o.entity_id].attributes.device_class;
+        if (p && !["occupancy", "motion", "presence", "door", "window", "opening"].includes(p)) continue;
       }
       n.push(o.entity_id);
     }
@@ -11914,7 +11916,7 @@ function zx({ hass: s, layout: t, room: n, onAdd: a }) {
     ] })
   ] });
 }
-const Xb = "0.1.6", Wb = [
+const Xb = "0.1.7", Wb = [
   { v: "downlight", label: "崁燈" },
   { v: "ceiling", label: "吸頂燈" },
   { v: "pendant", label: "吊燈" },
@@ -12015,6 +12017,14 @@ function qb(s) {
         a.filter((h) => h.virtual).length,
         " 面虛擬"
       ] })
+    ] }),
+    /* @__PURE__ */ E.jsxs("section", { children: [
+      /* @__PURE__ */ E.jsx("h3", { children: "3D" }),
+      /* @__PURE__ */ E.jsxs("label", { className: "dh-row", style: { cursor: "pointer" }, children: [
+        /* @__PURE__ */ E.jsx("input", { type: "checkbox", style: { width: "auto" }, checked: t.labels3d !== !1, onChange: (h) => s.onCommit({ ...t, labels3d: h.target.checked }) }),
+        /* @__PURE__ */ E.jsx("span", { children: "顯示感測數值標籤" })
+      ] }),
+      /* @__PURE__ */ E.jsx("div", { className: "dh-muted", children: "感測器很多時關掉會清爽很多；燈、冷氣、窗簾不受影響。" })
     ] }),
     /* @__PURE__ */ E.jsxs("section", { children: [
       /* @__PURE__ */ E.jsx("h3", { children: "房間" }),
@@ -28974,10 +28984,14 @@ function RR({ layout: s, hass: t }) {
       }, children: "重置" })
     ] }),
     /* @__PURE__ */ E.jsx("div", { className: "dh-hint", children: "拖曳旋轉，滾輪或雙指縮放，右鍵或雙指拖曳平移。狀態即時更新。" }),
-    l && /* @__PURE__ */ E.jsx("div", { className: "dh-empty", children: /* @__PURE__ */ E.jsxs("div", { children: [
+    l && /* @__PURE__ */ E.jsx("div", { className: "dh-empty", style: { pointerEvents: "auto" }, children: /* @__PURE__ */ E.jsxs("div", { children: [
       /* @__PURE__ */ E.jsx("b", { children: "3D 無法顯示" }),
       /* @__PURE__ */ E.jsx("br", {}),
-      l
+      l,
+      /* @__PURE__ */ E.jsx("br", {}),
+      /* @__PURE__ */ E.jsx("span", { className: "dh-muted", children: "HA 手機 App 的內建瀏覽器有時會關閉 WebGL。" }),
+      /* @__PURE__ */ E.jsx("br", {}),
+      /* @__PURE__ */ E.jsx("button", { className: "dh-btn", style: { marginTop: 8 }, onClick: () => window.open(location.href, "_blank"), children: "在瀏覽器開啟" })
     ] }) })
   ] });
 }
@@ -29140,8 +29154,11 @@ function UR(s, t, n) {
       const L = (x == null ? void 0 : x.state) === "on" || (x == null ? void 0 : x.state) === "open" || (x == null ? void 0 : x.state) === "playing", w = du(t, _), A = fl(_, n, w), X = new zn({ color: L ? 2450411 : 10265519 });
       let H;
       A >= w - 0.05 ? H = new ge(new Ni(0.1, 0.1, 0.03, 16), X) : A <= 0.05 ? H = new ge(new Ni(0.12, 0.12, 0.25, 12), X) : H = new ge(new fn(0.12, 0.12, 0.03), X), H.position.set(M, A >= w - 0.05 ? w - 0.02 : A <= 0.05 ? 0.125 : A, T), H.rotation.y = ts.degToRad(-(_.rotation ?? 0)), H.castShadow = !0, s.add(H);
-      const I = _.attribute ? x == null ? void 0 : x.attributes[_.attribute] : x == null ? void 0 : x.state, j = _.attribute ? "" : (x == null ? void 0 : x.attributes.unit_of_measurement) ?? "", P = pu(`${I ?? "?"}${j}`, "#374151", 0.7);
-      P.position.set(M, A >= w - 0.05 ? w - 0.3 : A <= 0.05 ? 0.55 : A + 0.3, T), s.add(P);
+      const I = _.attribute ? x == null ? void 0 : x.attributes[_.attribute] : x == null ? void 0 : x.state, j = _.attribute ? "" : (x == null ? void 0 : x.attributes.unit_of_measurement) ?? "";
+      if (t.labels3d !== !1) {
+        const P = pu(`${I ?? "?"}${j}`, "#374151", 0.7);
+        P.position.set(M, A >= w - 0.05 ? w - 0.3 : A <= 0.05 ? 0.55 : A + 0.3, T), s.add(P);
+      }
     }
   }
 }

@@ -99,6 +99,8 @@ export interface Layout {
   wallVirtual?: Record<string, true>;
   /** Grid in metres for snapping (0 = off). */
   grid: number;
+  /** 3D: draw value labels for generic items (sensors, switches). Default true. */
+  labels3d?: boolean;
 }
 
 /** A wall derived from room edges. Never stored; always recomputed. */

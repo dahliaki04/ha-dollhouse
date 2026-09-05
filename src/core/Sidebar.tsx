@@ -133,6 +133,15 @@ function LayoutPanel(p: SidebarProps) {
       </section>
 
       <section>
+        <h3>3D</h3>
+        <label className="dh-row" style={{ cursor: "pointer" }}>
+          <input type="checkbox" style={{ width: "auto" }} checked={layout.labels3d !== false} onChange={(e) => p.onCommit({ ...layout, labels3d: e.target.checked })} />
+          <span>顯示感測數值標籤</span>
+        </label>
+        <div className="dh-muted">感測器很多時關掉會清爽很多；燈、冷氣、窗簾不受影響。</div>
+      </section>
+
+      <section>
         <h3>房間</h3>
         {layout.rooms.length === 0 && <div className="dh-muted">還沒有房間。用上方「矩形房間」工具畫一間。</div>}
         <ul className="dh-list">

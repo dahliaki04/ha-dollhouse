@@ -15,7 +15,9 @@ export function entitiesInArea(hass: HassLike, areaId: string): string[] {
     if (e.hidden || e.entity_category) continue;
     const area = e.area_id ?? (e.device_id ? hass.devices[e.device_id]?.area_id : null);
     if (area !== areaId) continue;
-    if (!hass.states[e.entity_id]) continue;
+    const st = hass.states[e.entity_id];
+    if (!st) continue;
+    if (st.state === "unavailable" || st.state === "unknown") continue; // dead entities only clutter the plan
     const dom = domainOf(e.entity_id);
     if (!PLACEABLE_DOMAINS.has(dom)) continue;
     if (dom === "sensor") {

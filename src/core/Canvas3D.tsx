@@ -156,7 +156,15 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
         <button className="dh-btn" onClick={() => { const t = three.current; if (t) { t.camera.zoom = 1; t.camera.updateProjectionMatrix(); } placeCamera(0); }}>重置</button>
       </div>
       <div className="dh-hint">拖曳旋轉，滾輪或雙指縮放，右鍵或雙指拖曳平移。狀態即時更新。</div>
-      {fatal && <div className="dh-empty"><div><b>3D 無法顯示</b><br />{fatal}</div></div>}
+      {fatal && (
+        <div className="dh-empty" style={{ pointerEvents: "auto" }}>
+          <div>
+            <b>3D 無法顯示</b><br />{fatal}<br />
+            <span className="dh-muted">HA 手機 App 的內建瀏覽器有時會關閉 WebGL。</span><br />
+            <button className="dh-btn" style={{ marginTop: 8 }} onClick={() => window.open(location.href, "_blank")}>在瀏覽器開啟</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -511,9 +519,11 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       scene.add(box);
       const raw = item.attribute ? state?.attributes[item.attribute] : state?.state;
       const unit = item.attribute ? "" : ((state?.attributes.unit_of_measurement as string | undefined) ?? "");
-      const sp = textSprite(`${raw ?? "?"}${unit}`, "#374151", 0.7);
-      sp.position.set(x, yg >= ceilingH - 0.05 ? ceilingH - 0.3 : yg <= 0.05 ? 0.55 : yg + 0.3, z);
-      scene.add(sp);
+      if (layout.labels3d !== false) {
+        const sp = textSprite(`${raw ?? "?"}${unit}`, "#374151", 0.7);
+        sp.position.set(x, yg >= ceilingH - 0.05 ? ceilingH - 0.3 : yg <= 0.05 ? 0.55 : yg + 0.3, z);
+        scene.add(sp);
+      }
     }
   }
 }

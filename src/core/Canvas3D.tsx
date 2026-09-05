@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Layout, Point } from "../domain/types";
 import { deriveWalls } from "../domain/walls";
 import { bbox, centroid } from "../domain/geometry";
@@ -19,9 +20,8 @@ export interface Canvas3DProps {
  */
 export default function Canvas3D({ layout, hass }: Canvas3DProps) {
   const mount = useRef<HTMLDivElement>(null);
-  const [dir, setDir] = useState(0); // 0..3 quarter turns
-  const [zoom, setZoom] = useState(1);
-  const three = useRef<{ renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.OrthographicCamera } | null>(null);
+  const three = useRef<{ renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.OrthographicCamera; controls: OrbitControls } | null>(null);
+  const [, bump] = useState(0);
 
   // Renderer lifecycle.
   useEffect(() => {
@@ -33,7 +33,16 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 500);
-    three.current = { renderer, scene, camera };
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = false;
+    controls.minPolarAngle = 0.12; // almost top-down
+    controls.maxPolarAngle = 1.25; // ~72°, never below the floor
+    controls.minZoom = 0.4;
+    controls.maxZoom = 5;
+    controls.screenSpacePanning = true;
+    controls.addEventListener("change", () => render());
+    three.current = { renderer, scene, camera, controls };
+    placeCamera(0);
     const ro = new ResizeObserver(() => {
       renderer.setSize(el.clientWidth, el.clientHeight, false);
       renderer.domElement.style.width = "100%";
@@ -43,6 +52,7 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
     ro.observe(el);
     return () => {
       ro.disconnect();
+      controls.dispose();
       renderer.dispose();
       el.removeChild(renderer.domElement);
       three.current = null;
@@ -57,8 +67,14 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
     buildScene(t.scene, layout, hass);
     frame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, hass.states, dir, zoom]);
+  }, [layout, hass.states]);
 
+  const render = () => {
+    const t = three.current;
+    if (t) t.renderer.render(t.scene, t.camera);
+  };
+
+  /** Fit the orthographic frustum to the container; zoom is left to OrbitControls. */
   const frame = () => {
     const t = three.current;
     if (!t) return;
@@ -66,32 +82,63 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
     const w = el.clientWidth || 1;
     const h = el.clientHeight || 1;
     const size = layoutSizeM(layout);
-    const span = Math.max(size.w, size.h) * 0.75 / zoom;
+    const span = Math.max(size.w, size.h) * 0.75;
     const aspect = w / h;
     t.camera.left = -span * aspect;
     t.camera.right = span * aspect;
     t.camera.top = span;
     t.camera.bottom = -span;
-    // Isometric-ish: 45° azimuth per direction, ~35° elevation.
-    const az = (Math.PI / 4) + dir * (Math.PI / 2);
-    const r = 60;
-    t.camera.position.set(size.cx + r * Math.cos(az), r * 0.7, size.cz + r * Math.sin(az));
-    t.camera.lookAt(size.cx, 0, size.cz);
     t.camera.updateProjectionMatrix();
+    t.controls.target.set(size.cx, 0, size.cz);
     t.renderer.setSize(w, h, false);
-    t.renderer.render(t.scene, t.camera);
+    render();
+  };
+
+  /** Snap the camera to one of four isometric directions (quarter turns), keeping the current tilt. */
+  const placeCamera = (quarter: number) => {
+    const t = three.current;
+    if (!t) return;
+    const size = layoutSizeM(layout);
+    const target = new THREE.Vector3(size.cx, 0, size.cz);
+    const sph = new THREE.Spherical().setFromVector3(t.camera.position.clone().sub(target));
+    const polar = sph.radius > 1 ? sph.phi : 0.62; // ~35° elevation on first placement
+    const az = Math.PI / 4 + quarter * (Math.PI / 2);
+    sph.set(60, polar, az);
+    t.camera.position.copy(target).add(new THREE.Vector3().setFromSpherical(sph));
+    t.camera.lookAt(target);
+    t.controls.target.copy(target);
+    t.controls.update();
+    render();
+  };
+
+  const turn = (delta: number) => {
+    const t = three.current;
+    if (!t) return;
+    const size = layoutSizeM(layout);
+    const sph = new THREE.Spherical().setFromVector3(t.camera.position.clone().sub(new THREE.Vector3(size.cx, 0, size.cz)));
+    const q = Math.round((sph.theta - Math.PI / 4) / (Math.PI / 2)) + delta;
+    placeCamera(q);
+  };
+
+  const zoomBy = (k: number) => {
+    const t = three.current;
+    if (!t) return;
+    t.camera.zoom = Math.min(5, Math.max(0.4, t.camera.zoom * k));
+    t.camera.updateProjectionMatrix();
+    render();
+    bump((n) => n + 1);
   };
 
   return (
-    <div ref={mount} style={{ position: "absolute", inset: 0, background: "linear-gradient(#e5e7eb,#f3f4f6)" }} onWheel={(e) => setZoom((z) => Math.min(4, Math.max(0.4, z * (e.deltaY > 0 ? 0.9 : 1.1))))}>
+    <div ref={mount} style={{ position: "absolute", inset: 0, background: "linear-gradient(#e5e7eb,#f3f4f6)", touchAction: "none" }}>
       <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
-        <button className="dh-btn" onClick={() => setDir((d) => (d + 3) % 4)}>⟲ 轉</button>
-        <button className="dh-btn" onClick={() => setDir((d) => (d + 1) % 4)}>轉 ⟳</button>
-        <button className="dh-btn" onClick={() => setZoom((z) => Math.min(4, z * 1.25))}>＋</button>
-        <button className="dh-btn" onClick={() => setZoom((z) => Math.max(0.4, z / 1.25))}>－</button>
-        <button className="dh-btn" onClick={() => setZoom(1)}>重置</button>
+        <button className="dh-btn" onClick={() => turn(-1)}>⟲ 轉</button>
+        <button className="dh-btn" onClick={() => turn(1)}>轉 ⟳</button>
+        <button className="dh-btn" onClick={() => zoomBy(1.25)}>＋</button>
+        <button className="dh-btn" onClick={() => zoomBy(1 / 1.25)}>－</button>
+        <button className="dh-btn" onClick={() => { const t = three.current; if (t) { t.camera.zoom = 1; t.camera.updateProjectionMatrix(); } placeCamera(0); }}>重置</button>
       </div>
-      <div className="dh-hint">娃娃屋視圖：四個方向切換，滾輪縮放。狀態即時更新。</div>
+      <div className="dh-hint">拖曳旋轉，滾輪或雙指縮放，右鍵或雙指拖曳平移。狀態即時更新。</div>
     </div>
   );
 }

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dollhouse panel test</title>
+    <style>
+      /* Mimic HA dark theme variables + a hostile global stylesheet, to prove the shadow root isolates us. */
+      html, body { margin: 0; height: 100%; background: #111; color: #eee; font-size: 22px; }
+      button { font-size: 30px; background: #444; }
+      :root { --primary-background-color: #111111; --card-background-color: #1c1c1c; --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b; --divider-color: rgba(255,255,255,.12); --primary-color: #03a9f4; }
+      #host { height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <div id="host"></div>
+    <script type="module" src="./panel-test.tsx"></script>
+  </body>
+</html>

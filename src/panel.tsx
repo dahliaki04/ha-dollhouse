@@ -42,10 +42,19 @@ class DollhousePanel extends HTMLElement {
     return this._hass as HassLike;
   }
 
+  private container?: HTMLDivElement;
+
   connectedCallback() {
     this.style.display = "block";
     this.style.height = "100%";
-    if (!this.root) this.root = createRoot(this);
+    // Own shadow root: keeps HA's global styles out and lets our stylesheet reach the app.
+    if (!this.shadowRoot) {
+      const shadow = this.attachShadow({ mode: "open" });
+      this.container = document.createElement("div");
+      this.container.style.height = "100%";
+      shadow.appendChild(this.container);
+    }
+    if (!this.root) this.root = createRoot(this.container!);
     this.render();
   }
 

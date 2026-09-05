@@ -27,7 +27,11 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   const layoutRef = useRef(state.layout);
   layoutRef.current = state.layout;
 
-  useEffect(() => injectStyles(), []);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = rootRef.current?.getRootNode();
+    injectStyles(root instanceof ShadowRoot ? root : document);
+  }, []);
 
   // Load once.
   useEffect(() => {
@@ -129,7 +133,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   );
 
   return (
-    <div className="dh-app">
+    <div className="dh-app" ref={rootRef}>
       <div className="dh-toolbar">
         <span className="dh-title">🏠 Dollhouse</span>
         <input className="dh-btn dh-name" style={{ width: 140 }} value={state.layout.name} onChange={(e) => commit({ ...state.layout, name: e.target.value })} />

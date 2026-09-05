@@ -42,7 +42,7 @@ const byDomainThenName = (hass: HassLike) => (a: string, b: string) => {
 export function resolveKind(item: Pick<Item, "kind" | "entityId">, hass: HassLike): Exclude<ItemKind, "auto"> {
   if (item.kind !== "auto") return item.kind;
   const dom = domainOf(item.entityId);
-  if (dom === "light" || dom === "switch") return "light"; // relay switches almost always drive lights
+  if (dom === "light") return "light";
   if (dom === "climate") return "climate";
   if (dom === "cover") return "cover";
   if (dom === "binary_sensor") {
@@ -74,6 +74,7 @@ export const FIXTURE_HEIGHT: Record<FixtureType, number> = {
 export function makeItem(hass: HassLike, entityId: string, x: number, y: number): Item {
   const item: Item = { id: newId("i"), entityId, x, y, kind: "auto" };
   const dom = domainOf(entityId);
+  // Switches stay generic by default; the fixture guess is kept so "顯示方式 → 燈" gets a sensible glyph.
   if (dom === "light" || dom === "switch") item.fixture = guessFixture(hass, entityId);
   if (dom === "cover") item.length = 1.5;
   return item;

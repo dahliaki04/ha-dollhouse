@@ -10778,7 +10778,7 @@ function _l(s, t) {
   var a;
   if (s.kind !== "auto") return s.kind;
   const n = Vi(s.entityId);
-  if (n === "light" || n === "switch") return "light";
+  if (n === "light") return "light";
   if (n === "climate") return "climate";
   if (n === "cover") return "cover";
   if (n === "binary_sensor") {

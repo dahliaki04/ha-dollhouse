@@ -49,6 +49,10 @@ export interface Room {
   height?: number;
   /** Floor tint (CSS colour). */
   color?: string | null;
+  /** Status frame top-left (canvas units); null = automatic (inside the top-right corner). */
+  frame?: Point | null;
+  /** Hide the room's status frame. */
+  frameHidden?: boolean;
 }
 
 export interface Item {
@@ -64,6 +68,8 @@ export interface Item {
   beam?: Beam | null;
   /** Multiple fixtures driven by this one entity. */
   repeat?: Repeat | null;
+  /** Where the item is shown: on the plan at its position, or as a row in its room's status frame. Default by kind. */
+  showIn?: "plan" | "frame" | null;
   /** Rotation in degrees, for wall lights / strips. */
   rotation?: number;
   /** Physical length in metres (strips). Default 1.0. */

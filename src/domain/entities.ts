@@ -212,3 +212,34 @@ export function fixturePositions(item: Item, metresPerUnit: number): Point[] {
   }
   return out;
 }
+
+/** Value-type devices default to the room status frame; positional ones (lights, covers, climate) stay on the plan. */
+export function effectiveShowIn(item: Item, hass: HassLike): "plan" | "frame" {
+  if (item.showIn) return item.showIn;
+  const kind = resolveKind(item, hass);
+  return kind === "generic" || kind === "presence" ? "frame" : "plan";
+}
+
+/** Items listed in a room's status frame (by position inside the room). */
+export function frameItems(layout: Layout, room: Room, hass: HassLike): Item[] {
+  return layout.items.filter((i) => effectiveShowIn(i, hass) === "frame" && pointInPolygon([i.x, i.y], room.points));
+}
+
+/** Display value for a frame row. */
+export function frameValue(item: Item, hass: HassLike): { text: string; active: boolean; unknown: boolean } {
+  const s = hass.states[item.entityId];
+  const kind = resolveKind(item, hass);
+  if (!s || s.state === "unavailable" || s.state === "unknown") return { text: "—", active: false, unknown: true };
+  if (kind === "presence") return { text: s.state === "on" ? "有人" : "無人", active: s.state === "on", unknown: false };
+  if (kind === "climate") {
+    const cur = s.attributes.current_temperature as number | undefined;
+    const tgt = s.attributes.temperature as number | undefined;
+    return { text: s.state === "off" ? `${cur ?? "--"}° 關` : `${cur ?? "--"}° → ${tgt ?? "--"}°`, active: s.state !== "off", unknown: false };
+  }
+  const raw = item.attribute ? s.attributes[item.attribute] : s.state;
+  const unit = item.attribute ? "" : ((s.attributes.unit_of_measurement as string | undefined) ?? "");
+  const num = typeof raw === "number" ? Math.round(raw * 10) / 10 : Number.isFinite(Number(raw)) && String(raw).trim() !== "" ? Math.round(Number(raw) * 10) / 10 : null;
+  const text = num !== null ? `${num}${unit ? " " + unit : ""}` : String(raw ?? "?");
+  const active = s.state === "on" || s.state === "open" || s.state === "playing" || s.state === "home";
+  return { text, active, unknown: false };
+}

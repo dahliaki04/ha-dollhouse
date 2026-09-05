@@ -283,6 +283,20 @@ export const en: Record<string, string> = {
   "只顯示前 {n} 個，輸入關鍵字縮小範圍": "Showing the first {n}; type to narrow down",
   "Home Assistant area": "Home Assistant area",
 
+  // status frame
+  "顯示位置": "Shown",
+  "（預設）": " (default)",
+  "房間狀態框": "Room status frame",
+  "平面圖上": "On the plan",
+  "數值型裝置預設集中在房間的狀態框；拖它的小圓點到另一間就換房間。": "Value-type devices default to the room frame; drag its small dot into another room to move it.",
+  "狀態框": "Status frame",
+  "顯示": "Show",
+  "隱藏": "Hide",
+  "位置回預設": "Reset position",
+  "這間的感測數值、人在、開關狀態集中在這個框，可在畫布上拖動。": "Sensor values, presence and switch states of this room are listed here; drag the frame on the canvas.",
+  "有人": "Present",
+  "無人": "Clear",
+
   // light groups
   "整間": "Whole room",
   "燈組（一個開關帶多顆燈）": "Light group (one switch, several fixtures)",

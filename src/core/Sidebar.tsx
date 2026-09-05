@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { langFromHass, readLangOverride, setLang, t, writeLangOverride, type Lang } from "../i18n";
 import type { CoverDraw, CoverStyle, FixtureType, Item, ItemKind, Layout, Wall } from "../domain/types";
 import { coverView, guessCoverStyle } from "../domain/covers";
-import { autoPlace, defaultBeam, defaultMount, effectiveHeight, entitiesInArea, hasBeam, makeItem, mountHeight, resolveKind } from "../domain/entities";
+import { autoPlace, defaultBeam, defaultMount, effectiveHeight, effectiveShowIn, entitiesInArea, hasBeam, makeItem, mountHeight, resolveKind } from "../domain/entities";
 import type { Beam } from "../domain/types";
 import type { Mount } from "../domain/types";
 import { newId } from "../domain/types";
@@ -349,6 +349,15 @@ function RoomPanel(p: SidebarProps & { room: Room }) {
           <NumberField label={t("天花板高 (m)")} value={room.height ?? layout.wallDefaults.height} step={0.1} onChange={(v) => p.onCommit(updateRoom(layout, room.id, { height: v }))} />
           <div className="dh-field"><label>{t("地板色")}</label><input type="color" value={room.color ?? "#f8fafc"} onChange={(e) => p.onCommit(updateRoom(layout, room.id, { color: e.target.value }))} /></div>
         </div>
+        <div className="dh-field" style={{ marginTop: 8 }}>
+          <label>{t("狀態框")}</label>
+          <div className="dh-row">
+            <button className={`dh-btn small${!room.frameHidden ? " on" : ""}`} onClick={() => p.onCommit(updateRoom(layout, room.id, { frameHidden: false }))}>{t("顯示")}</button>
+            <button className={`dh-btn small${room.frameHidden ? " on" : ""}`} onClick={() => p.onCommit(updateRoom(layout, room.id, { frameHidden: true }))}>{t("隱藏")}</button>
+            {room.frame && <button className="dh-btn small" onClick={() => p.onCommit(updateRoom(layout, room.id, { frame: null }))}>{t("位置回預設")}</button>}
+          </div>
+          <div className="dh-muted">{t("這間的感測數值、人在、開關狀態集中在這個框，可在畫布上拖動。")}</div>
+        </div>
         <div className="dh-muted">{t("面積約 {a} m²，{n} 個頂點（選取後可拖頂點）", { a: (Math.abs(area(room)) * layout.metresPerUnit ** 2).toFixed(1), n: room.points.length })}{layout.locked ? " · " + t("平面圖已鎖定") : ""}</div>
         <div className="dh-row" style={{ marginTop: 10 }}>
           <button className="dh-btn danger" disabled={!!layout.locked} title={layout.locked ? t("平面圖已鎖定") : undefined} onClick={() => { p.onCommit(removeRoom(layout, room.id)); p.onSelect(null); p.onNotify?.(t("已刪除房間，可用工具列的復原鍵還原")); }}>{t("刪除房間")}</button>
@@ -436,6 +445,16 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
           {KINDS.map((k) => <option key={k.v} value={k.v}>{t(k.label)}{k.v === "auto" ? t("（{v}）", { v: t(KINDS.find((x) => x.v === kind)?.label ?? "") }) : ""}</option>)}
         </select>
       </div>
+      {kind !== "light" && kind !== "cover" && (
+        <div className="dh-field">
+          <label>{t("顯示位置")}{item.showIn ? "" : t("（預設）")}</label>
+          <div className="dh-row">
+            <button className={`dh-btn small${effectiveShowIn(item, hass) === "frame" ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { showIn: "frame" }))}>{t("房間狀態框")}</button>
+            <button className={`dh-btn small${effectiveShowIn(item, hass) === "plan" ? " on" : ""}`} onClick={() => p.onCommit(updateItem(layout, item.id, { showIn: "plan" }))}>{t("平面圖上")}</button>
+          </div>
+          <div className="dh-muted">{t("數值型裝置預設集中在房間的狀態框；拖它的小圓點到另一間就換房間。")}</div>
+        </div>
+      )}
       {kind === "light" && (
         <div className="dh-field">
           <label>{t("燈具型式")}</label>

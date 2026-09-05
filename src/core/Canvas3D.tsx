@@ -5,7 +5,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Item, Layout, Point } from "../domain/types";
 import { deriveWalls, nearestWall } from "../domain/walls";
 import { bbox, centroid, pointInPolygon } from "../domain/geometry";
-import { effectiveBeam, effectiveHeight, fixturePositions, hasBeam, hugsWall, resolveKind } from "../domain/entities";
+import { effectiveBeam, effectiveHeight, effectiveShowIn, fixturePositions, frameItems, frameValue, hasBeam, hugsWall, resolveKind } from "../domain/entities";
 import { coverInward, coverView, curtainPanels, wallInward } from "../domain/covers";
 import type { HassLike } from "../ha/types";
 import { brightness01, lightColor } from "./markers";
@@ -279,8 +279,9 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     scene.add(mesh);
     // Room label sprite.
     const c = toM(centroid(room.points));
-    const label = textSprite(room.name, "#1f2937");
-    label.position.set(c[0], 0.3, c[1]);
+    const rows = room.frameHidden ? [] : frameItems(layout, room, hass).slice(0, 5).map((it) => frameValue(it, hass).text);
+    const label = rows.length ? multilineSprite([room.name, ...rows], "#1f2937") : textSprite(room.name, "#1f2937");
+    label.position.set(c[0], rows.length ? 0.3 + rows.length * 0.12 : 0.3, c[1]);
     scene.add(label);
   }
 
@@ -347,6 +348,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
   }
   for (const item of expanded) {
     if (resolveKind(item, hass) === "light" && item.fixture === "room") continue; // whole-room lighting: floor tint only
+    if (effectiveShowIn(item, hass) === "frame") continue; // listed in the room frame instead
     const [x, z] = toM([item.x, item.y]);
     const kind = resolveKind(item, hass);
     const state = hass.states[item.entityId];
@@ -568,6 +570,37 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
 function roomCeiling(layout: Layout, item: { x: number; y: number }): number {
   const room = layout.rooms.find((r) => inside([item.x, item.y], r.points));
   return room?.height ?? layout.wallDefaults.height;
+}
+
+/** Room name plus value rows on one card. */
+function multilineSprite(lines: string[], color: string): THREE.Sprite {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+  const title = "bold 40px system-ui, 'Noto Sans TC', sans-serif";
+  const body = "30px system-ui, 'Noto Sans TC', sans-serif";
+  ctx.font = title;
+  let w = ctx.measureText(lines[0]).width;
+  ctx.font = body;
+  for (const l of lines.slice(1)) w = Math.max(w, ctx.measureText(l).width);
+  w = Math.ceil(w) + 32;
+  const h = 56 + (lines.length - 1) * 38 + 12;
+  canvas.width = w;
+  canvas.height = h;
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  roundRect(ctx, 0, 0, w, h, 16);
+  ctx.fill();
+  ctx.fillStyle = color;
+  ctx.textBaseline = "middle";
+  ctx.font = title;
+  ctx.fillText(lines[0], 16, 30);
+  ctx.font = body;
+  ctx.fillStyle = "#374151";
+  lines.slice(1).forEach((l, i) => ctx.fillText(l, 16, 62 + i * 38));
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+  sprite.scale.set((w / 64) * 0.45, (h / 64) * 0.45, 1);
+  return sprite;
 }
 
 function textSprite(text: string, color: string, scale = 1): THREE.Sprite {

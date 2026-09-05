@@ -5,10 +5,11 @@ import { bbox, dist, rectToPolygon, snapToGrid } from "../domain/geometry";
 import { nearestWall, wallThicknessUnits } from "../domain/walls";
 import { lightColor, Marker } from "./markers";
 import { FurnitureGlyph } from "./FurnitureGlyph";
+import { RoomFrame, framePosition } from "./RoomFrame";
 import type { Furniture } from "../domain/furniture";
 import { moveRoom, updateFurniture, updateItem, updateRoom, type Selection, type Tool } from "./useEditor";
 import type { HassLike } from "../ha/types";
-import { entitiesInArea, hugsWall, resolveKind } from "../domain/entities";
+import { effectiveShowIn, entitiesInArea, hugsWall, resolveKind } from "../domain/entities";
 import { backgroundFit, detectRoom, loadGray, type Gray } from "../domain/autoroom";
 
 export interface Canvas2DProps {
@@ -38,6 +39,7 @@ interface ViewBox { x: number; y: number; w: number; h: number }
 type Drag =
   | { kind: "item"; id: string; start: Point; orig: Point; moved: boolean }
   | { kind: "furn"; id: string; start: Point; orig: Point; moved: boolean }
+  | { kind: "frame"; id: string; start: Point; orig: Point; moved: boolean }
   | { kind: "room"; id: string; last: Point; moved: boolean }
   | { kind: "vertex"; id: string; index: number }
   | { kind: "rect"; start: Point; cur: Point }
@@ -293,6 +295,12 @@ export function Canvas2D(p: Canvas2DProps) {
       const target = e.shiftKey ? [drag.orig[0] + dx, drag.orig[1] + dy] : snapToGridPt([drag.orig[0] + dx, drag.orig[1] + dy], gridUnits / 5);
       setDrag({ ...drag, moved: true });
       p.onPreview(updateFurniture(layoutRef.current, drag.id, { x: target[0], y: target[1] }));
+    } else if (drag.kind === "frame") {
+      const dx = pt[0] - drag.start[0];
+      const dy = pt[1] - drag.start[1];
+      if (!drag.moved && Math.hypot(dx, dy) < 0.05 * m) return;
+      setDrag({ ...drag, moved: true });
+      p.onPreview(updateRoom(layoutRef.current, drag.id, { frame: [drag.orig[0] + dx, drag.orig[1] + dy] }));
     } else if (drag.kind === "room") {
       const s = snapToGridPt(pt, gridUnits);
       const dx = s[0] - drag.last[0];
@@ -332,6 +340,9 @@ export function Canvas2D(p: Canvas2DProps) {
         if (e.detail >= 2) p.onDoubleTap(item);
         else p.onTap(item);
       }
+    } else if (drag.kind === "frame") {
+      if (drag.moved) p.onCommit(layoutRef.current);
+      else p.onSelect({ kind: "room", id: drag.id });
     } else if (drag.kind === "furn") {
       if (drag.moved) p.onCommit(layoutRef.current);
     } else if (drag.kind === "room" || drag.kind === "vertex") {
@@ -386,6 +397,14 @@ export function Canvas2D(p: Canvas2DProps) {
     svgRef.current!.setPointerCapture(e.pointerId);
     p.onSelect({ kind: "furniture", id: f.id });
     setDrag({ kind: "furn", id: f.id, start: toCanvas(e), orig: [f.x, f.y], moved: false });
+  };
+
+  const startFrameDrag = (e: React.PointerEvent, room: Room) => {
+    if (tool !== "select" || e.button !== 0 || p.readOnly) return;
+    e.stopPropagation();
+    svgRef.current!.setPointerCapture(e.pointerId);
+    const pos = framePosition(room, m);
+    setDrag({ kind: "frame", id: room.id, start: toCanvas(e), orig: pos, moved: false });
   };
 
   const startRoomDrag = (e: React.PointerEvent, room: Room) => {
@@ -507,9 +526,25 @@ export function Canvas2D(p: Canvas2DProps) {
           <circle key={i} cx={q[0]} cy={q[1]} r={0.12 * m} fill="#fff" stroke="#2563eb" strokeWidth={0.03 * m} style={{ cursor: "grab" }} onPointerDown={(e) => startVertexDrag(e, selRoom, i)} />
         ))}
 
-        {/* items */}
-        {layout.items.map((it) => (
-          <Marker key={it.id} item={it} layout={layout} hass={hass} selected={selection?.kind === "item" && selection.id === it.id} onPointerDown={startItemDrag} />
+        {/* items on the plan; frame items appear as faint handles in edit mode so they can still be moved between rooms */}
+        {layout.items.map((it) => {
+          const inFrame = effectiveShowIn(it, hass) === "frame";
+          if (inFrame && p.readOnly) return null;
+          if (inFrame) {
+            const sel = selection?.kind === "item" && selection.id === it.id;
+            return (
+              <g key={it.id} transform={`translate(${it.x} ${it.y})`} onPointerDown={(e) => startItemDrag(e, it)} style={{ cursor: "pointer" }} opacity={sel ? 1 : 0.45}>
+                <circle r={0.11 * m} fill="#fff" stroke={sel ? "#2563eb" : "#94a3b8"} strokeWidth={0.02 * m} strokeDasharray={`${0.04 * m} ${0.03 * m}`} />
+                <circle r={0.03 * m} fill={sel ? "#2563eb" : "#94a3b8"} />
+              </g>
+            );
+          }
+          return <Marker key={it.id} item={it} layout={layout} hass={hass} selected={selection?.kind === "item" && selection.id === it.id} onPointerDown={startItemDrag} />;
+        })}
+
+        {/* room status frames */}
+        {layout.rooms.map((r) => (
+          <RoomFrame key={`f-${r.id}`} room={r} layout={layout} hass={hass} m={m} readOnly={p.readOnly} selected={selection?.kind === "room" && selection.id === r.id} onPointerDown={startFrameDrag} onRowTap={(it) => p.onDoubleTap(it)} />
         ))}
 
         {/* drafting overlays */}

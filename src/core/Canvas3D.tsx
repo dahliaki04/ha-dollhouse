@@ -150,7 +150,7 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
 
   return (
     <div ref={mount} style={{ position: "absolute", inset: 0, background: "linear-gradient(#e5e7eb,#f3f4f6)", touchAction: "none" }}>
-      <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
+      <div className="dh-3d-controls">
         <button className="dh-btn" aria-label={t("向左轉")} title={t("向左轉")} onClick={() => turn(-1)}>⟲</button>
         <button className="dh-btn" aria-label={t("向右轉")} title={t("向右轉")} onClick={() => turn(1)}>⟳</button>
         <button className="dh-btn" aria-label={t("放大")} title={t("放大")} onClick={() => zoomBy(1.25)}>+</button>

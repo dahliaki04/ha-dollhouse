@@ -12513,6 +12513,8 @@ const B_ = "dollhouse-styles", O1 = `
 .dh-toast-action{background:none;border:0;color:#93c5fd;font:inherit;font-weight:600;cursor:pointer;padding:0}
 .dh-steps{margin:0;padding:0 0 0 18px;line-height:1.7}
 .dh-viewer-controls{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:3}
+.dh-3d-controls{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:6px;z-index:3}
+.dh-3d-controls .dh-btn{width:38px;height:38px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:16px}
 .dh-viewer-hint{position:absolute;left:10px;bottom:8px;font-size:11px;background:rgba(17,24,39,.55);color:#fff;padding:2px 8px;border-radius:6px;pointer-events:none}
 .dh-app-view .dh-body{flex:1;min-height:0}
 .dh-card{font:14px/1.4 system-ui,-apple-system,"Segoe UI","Noto Sans TC",sans-serif;color:var(--primary-text-color,#111)}
@@ -12740,7 +12742,7 @@ function Ey({ hass: a, layout: t, room: e, onAdd: s, onRemove: o, onFocus: l }) 
     ] })
   ] });
 }
-const G1 = "0.4.3", Ty = "dollhouse:ui:sections";
+const G1 = "0.4.4", Ty = "dollhouse:ui:sections";
 function H_() {
   try {
     return JSON.parse(localStorage.getItem(Ty) ?? "{}");
@@ -30149,7 +30151,7 @@ function T3({ layout: a, hass: t }) {
     S && (S.camera.zoom = Math.min(5, Math.max(0.4, S.camera.zoom * M)), S.camera.updateProjectionMatrix(), p(), o((E) => E + 1));
   };
   return /* @__PURE__ */ _.jsxs("div", { ref: e, style: { position: "absolute", inset: 0, background: "linear-gradient(#e5e7eb,#f3f4f6)", touchAction: "none" }, children: [
-    /* @__PURE__ */ _.jsxs("div", { style: { position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }, children: [
+    /* @__PURE__ */ _.jsxs("div", { className: "dh-3d-controls", children: [
       /* @__PURE__ */ _.jsx("button", { className: "dh-btn", "aria-label": O("向左轉"), title: O("向左轉"), onClick: () => v(-1), children: "⟲" }),
       /* @__PURE__ */ _.jsx("button", { className: "dh-btn", "aria-label": O("向右轉"), title: O("向右轉"), onClick: () => v(1), children: "⟳" }),
       /* @__PURE__ */ _.jsx("button", { className: "dh-btn", "aria-label": O("放大"), title: O("放大"), onClick: () => x(1.25), children: "+" }),

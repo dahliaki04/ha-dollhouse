@@ -54,6 +54,8 @@ export const CSS = `
 .dh-toast-action{background:none;border:0;color:#93c5fd;font:inherit;font-weight:600;cursor:pointer;padding:0}
 .dh-steps{margin:0;padding:0 0 0 18px;line-height:1.7}
 .dh-viewer-controls{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:3}
+.dh-3d-controls{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:6px;z-index:3}
+.dh-3d-controls .dh-btn{width:38px;height:38px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:16px}
 .dh-viewer-hint{position:absolute;left:10px;bottom:8px;font-size:11px;background:rgba(17,24,39,.55);color:#fff;padding:2px 8px;border-radius:6px;pointer-events:none}
 .dh-app-view .dh-body{flex:1;min-height:0}
 .dh-card{font:14px/1.4 system-ui,-apple-system,"Segoe UI","Noto Sans TC",sans-serif;color:var(--primary-text-color,#111)}

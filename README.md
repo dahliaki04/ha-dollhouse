@@ -13,6 +13,18 @@ Draw your home in minutes, drag your Home Assistant entities onto it, and see it
 - **2D and 3D share one model.** The dollhouse view is an isometric orthographic camera with four fixed directions.
 - **Live.** Tap a light to toggle it; double-tap for more-info. State changes render immediately.
 
+## In pictures
+
+| Draw rooms, link areas, place devices | View mode: tap to toggle, long-press for details |
+|---|---|
+| ![Editor](docs/img/edit.jpg) | ![2D view](docs/img/view-2d.jpg) |
+
+| 3D dollhouse with live lighting and callouts | Dashboard card |
+|---|---|
+| ![3D view](docs/img/view-3d.jpg) | ![Card](docs/img/card.jpg) |
+
+First run shows a welcome screen (load a demo, upload a plan, or just draw); the **?** button opens a help drawer with gestures and shortcuts.
+
 ## Daily use: view mode and the dashboard card
 
 - In the panel, **完成 / Done** switches to view mode: full-bleed plan or dollhouse, tap an icon to toggle it, long-press for more-info, nothing can be moved by accident. **編輯 / Edit** goes back.

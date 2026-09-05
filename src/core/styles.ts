@@ -53,6 +53,24 @@ export const CSS = `
 .dh-toast.error{background:#b91c1c}
 .dh-toast-action{background:none;border:0;color:#93c5fd;font:inherit;font-weight:600;cursor:pointer;padding:0}
 .dh-steps{margin:0;padding:0 0 0 18px;line-height:1.7}
+.dh-welcome{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.35);padding:16px}
+.dh-welcome-box{background:var(--dh-card);color:var(--dh-text);border-radius:14px;padding:18px;max-width:720px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.dh-welcome-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}
+.dh-welcome-title{font-size:18px;font-weight:700;margin-bottom:4px}
+.dh-welcome-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.dh-welcome-card{text-align:left;background:var(--dh-bg);border:1px solid var(--dh-border);border-radius:10px;padding:14px;cursor:pointer;font:inherit;color:var(--dh-text);display:flex;flex-direction:column;gap:6px;min-height:120px}
+.dh-welcome-card:hover{border-color:var(--dh-primary);background:var(--dh-hover)}
+.dh-welcome-icon{font-size:26px}
+.dh-welcome-card-title{font-weight:600}
+@media (max-width:640px){.dh-welcome-cards{grid-template-columns:1fr}.dh-welcome-card{min-height:0}}
+.dh-help{position:absolute;top:0;right:0;bottom:0;width:min(380px,100%);background:var(--dh-card);color:var(--dh-text);border-left:1px solid var(--dh-border);z-index:7;display:flex;flex-direction:column;box-shadow:-8px 0 24px rgba(0,0,0,.15)}
+.dh-help-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--dh-border)}
+.dh-help-body{overflow:auto;padding:6px 14px 20px}
+.dh-help-body h3{margin:14px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--dh-muted)}
+.dh-help-list{margin:0}
+.dh-help-list div{display:grid;grid-template-columns:110px 1fr;gap:8px;padding:5px 0;border-bottom:1px solid var(--dh-border)}
+.dh-help-list dt{font-weight:600;font-size:13px}
+.dh-help-list dd{margin:0;font-size:13px;color:var(--dh-text)}
 .dh-viewer-controls{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:3}
 .dh-3d-controls{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:6px;z-index:3}
 .dh-3d-controls .dh-btn{width:38px;height:38px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:16px}

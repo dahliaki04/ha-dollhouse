@@ -69,5 +69,7 @@ export function demoLayout(hass: HassLike): Layout {
     put("toilet", 9.0, 7.5, 0),
     put("sink", 9.0, 5.5, 180),
   ];
+  // On a real Home Assistant the mock entity ids do not exist: keep rooms, walls and furniture, drop unknown items.
+  layout.items = layout.items.filter((i) => !!hass.states[i.entityId]);
   return layout;
 }

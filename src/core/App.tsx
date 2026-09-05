@@ -7,6 +7,10 @@ import { Sidebar, TextField } from "./Sidebar";
 import { Mark } from "./Mark";
 import { ToastBar, type Toast } from "./ui";
 import { Viewer } from "./Viewer";
+import { Welcome, markWelcomeSeen, welcomeSeen } from "./Welcome";
+import { Help } from "./Help";
+import { demoLayout } from "../ha/demo";
+import { setBackground } from "./useEditor";
 import { langFromHass, onLangChange, readLangOverride, setLang, t } from "../i18n";
 import { injectStyles } from "./styles";
 import { addRoom, removeFurniture, removeItem, removeRoom, setScale, useEditor, type Tool } from "./useEditor";
@@ -32,6 +36,8 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   useEffect(() => onLangChange(() => langTick((n) => n + 1)), []);
   useEffect(() => { setLang(readLangOverride() ?? langFromHass(hass.language)); }, [hass.language]);
   const [wallMulti, setWallMulti] = useState(false);
+  const [help, setHelp] = useState(() => import.meta.env.DEV && new URLSearchParams(location.search).has("help"));
+  const [welcomeDismissed, setWelcomeDismissed] = useState(() => welcomeSeen());
   // Edit vs view mode. Remembered per device; first run with no rooms starts in edit mode.
   const [mode, setModeState] = useState<"edit" | "view">(() => { try { return (localStorage.getItem("dollhouse:mode") as "edit" | "view") || "view"; } catch { return "view"; } });
   const setMode = (m: "edit" | "view") => { setModeState(m); try { localStorage.setItem("dollhouse:mode", m); } catch { /* ignore */ } };
@@ -165,8 +171,9 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
             onViewChange={(v) => dispatch({ type: "view", view: v })}
             toggle={!!render3D}
             onMoreInfo={onMoreInfo}
-            extra={<button className="dh-btn" onClick={() => setMode("edit")}>{t("編輯")}</button>}
+            extra={<><button className="dh-btn" onClick={() => setMode("edit")}>{t("編輯")}</button><button className={`dh-btn${help ? " on" : ""}`} onClick={() => setHelp((h) => !h)} aria-label={t("說明")} title={t("說明")}>?</button></>}
           />
+          {help && <Help onClose={() => setHelp(false)} />}
           <ToastBar toast={toast} onDone={() => setToast(null)} />
         </div>
       </div>
@@ -188,6 +195,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
         <button className={`dh-btn${state.view === "2d" ? " on" : ""}`} onClick={() => dispatch({ type: "view", view: "2d" })}>2D</button>
         <button className={`dh-btn${state.view === "3d" ? " on" : ""}`} disabled={!render3D} onClick={() => dispatch({ type: "view", view: "3d" })}>3D</button>
         <button className="dh-btn" onClick={() => setMode("view")} disabled={state.layout.rooms.length === 0} title={t("切換到檢視模式")}>{t("完成")}</button>
+        <button className={`dh-btn${help ? " on" : ""}`} onClick={() => setHelp((h) => !h)} aria-label={t("說明")} title={t("說明")}>?</button>
         <span className="dh-spacer" />
         <span className="dh-muted dh-save">{saveState === "saving" ? t("儲存中…") : saveState === "error" ? t("儲存失敗") : state.dirty ? t("未儲存") : loaded ? t("已儲存") : ""}</span>
       </div>
@@ -214,6 +222,15 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
           <div className="dh-canvas-wrap" style={{ minHeight: 320 }}>{render3D({ layout: state.layout, hass })}</div>
         )}
         <Sidebar layout={state.layout} hass={hass} walls={walls} selection={state.selection} onCommit={commit} onSelect={select} onExport={onExport} onImport={onImport} onStartScale={() => setTool("scale")} placing={placing} onPlacing={setPlacing} onNotify={notify} wallMulti={wallMulti} onWallMulti={setWallMulti} />
+        {help && <Help onClose={() => setHelp(false)} />}
+        {loaded && !welcomeDismissed && state.layout.rooms.length === 0 && (
+          <Welcome
+            onClose={() => { markWelcomeSeen(); setWelcomeDismissed(true); }}
+            onDemo={() => { commit(demoLayout(hass)); markWelcomeSeen(); setWelcomeDismissed(true); notify(t("已載入示範，檔案區的「全部清除」可以重來")); }}
+            onBackground={(bg) => { commit(setBackground(state.layout, bg)); markWelcomeSeen(); setWelcomeDismissed(true); setTool("magic"); }}
+            onDraw={() => { markWelcomeSeen(); setWelcomeDismissed(true); setTool("rect"); }}
+          />
+        )}
         <ToastBar toast={toast} onDone={() => setToast(null)} />
       </div>
     </div>

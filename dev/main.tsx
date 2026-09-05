@@ -30,7 +30,10 @@ async function boot() {
   const q = new URLSearchParams(location.search);
   if (q.get("lang") === "en" || q.get("lang") === "zh-Hant") writeLangOverride(q.get("lang") as "en" | "zh-Hant");
   const seed = createMockHass(() => {});
-  if (q.has("plan")) {
+  if (q.has("empty")) {
+    localStorage.removeItem("dollhouse:welcomed");
+    await store.save(emptyLayout("我的家"));
+  } else if (q.has("plan")) {
     // Blank layout with a synthetic scanned plan as background (for the click-to-detect tool).
     const blob = await (await fetch("./plan.png")).blob();
     const bg = await importBackground(new File([blob], "plan.png", { type: "image/png" }));

@@ -222,6 +222,10 @@ function LayoutPanel(p: SidebarProps) {
           <button className="dh-btn" onClick={() => importRef.current?.click()}>{t("匯入 JSON")}</button>
           <input ref={importRef} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && p.onImport(e.target.files[0])} />
         </div>
+        <div className="dh-row" style={{ marginTop: 10 }}>
+          <button className="dh-btn danger small" disabled={layout.rooms.length === 0 && layout.items.length === 0 && !(layout.furniture ?? []).length} onClick={() => { p.onCommit({ ...layout, rooms: [], items: [], furniture: [], wallThickness: {}, wallVirtual: {}, background: null, locked: false }); p.onSelect(null); p.onNotify?.(t("已全部清除，可用復原鍵還原")); }}>{t("全部清除")}</button>
+          <span className="dh-muted">{t("清掉房間、裝置、家具與底圖，從頭開始。")}</span>
+        </div>
         <div className="dh-field" style={{ marginTop: 10 }}>
           <label>{t("語言")}</label>
           <div className="dh-row">

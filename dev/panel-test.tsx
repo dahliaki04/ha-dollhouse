@@ -9,6 +9,7 @@ import { demoLayout } from "../src/ha/demo";
 import type { HassLike } from "../src/ha/types";
 
 const host = document.getElementById("host")!;
+if (new URLSearchParams(location.search).has("noheight")) document.body.classList.add("noheight");
 const el = document.createElement("dollhouse-panel") as HTMLElement & { hass: HassLike };
 
 // Fake the two WebSocket commands the integration provides, backed by localStorage.

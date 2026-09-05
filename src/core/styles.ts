@@ -1,7 +1,7 @@
 export const STYLE_ID = "dollhouse-styles";
 
 export const CSS = `
-:host{display:block;height:100%}
+:host{display:block;height:100%;min-height:100dvh}
 .dh-app{--dh-bg:var(--primary-background-color,#f3f4f6);--dh-card:var(--card-background-color,#fff);--dh-text:var(--primary-text-color,#111827);--dh-muted:var(--secondary-text-color,#6b7280);--dh-border:var(--divider-color,#e5e7eb);--dh-primary:var(--primary-color,#2563eb);--dh-hover:rgba(127,127,127,.12);display:flex;flex-direction:column;height:100%;min-height:480px;font:14px/1.4 system-ui,-apple-system,"Segoe UI","Noto Sans TC",sans-serif;color:var(--dh-text);background:var(--dh-bg);box-sizing:border-box}
 .dh-app *{box-sizing:border-box}
 .dh-toolbar{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--dh-card);border-bottom:1px solid var(--dh-border);flex-wrap:wrap}
@@ -16,7 +16,7 @@ export const CSS = `
 .dh-btn.small{padding:3px 8px;font-size:12px}
 .dh-btn.danger{color:#b91c1c;border-color:#fca5a5}
 .dh-body{display:flex;flex:1;min-height:0}
-.dh-canvas-wrap{flex:1;position:relative;overflow:hidden;background:#e9ebee;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:contain}
+.dh-canvas-wrap{flex:1;position:relative;overflow:hidden;min-height:360px;background:#e9ebee;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:contain}
 .dh-canvas-wrap svg{width:100%;height:100%;display:block}
 .dh-hint{position:absolute;left:12px;bottom:10px;background:rgba(17,24,39,.8);color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;pointer-events:none}
 .dh-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
@@ -40,7 +40,7 @@ export const CSS = `
 @keyframes dh-pulse{0%{opacity:.35;transform:scale(.8)}100%{opacity:0;transform:scale(1.6)}}
 .dh-pulse{animation:dh-pulse 1.6s ease-out infinite;transform-box:fill-box;transform-origin:center}
 .dh-marker text{pointer-events:none;user-select:none}
-@media (max-width:800px){.dh-body{flex-direction:column}.dh-side{width:100%;height:40%;border-left:none;border-top:1px solid var(--dh-border);padding:10px}.dh-toolbar{padding:6px 8px;gap:4px}.dh-toolbar .dh-title{font-size:14px;margin-right:2px}.dh-name{display:none}.dh-btn{padding:7px 9px}.dh-hint{display:none}.dh-save{display:none}}
+@media (max-width:800px){.dh-body{flex-direction:column;overflow:auto;-webkit-overflow-scrolling:touch}.dh-canvas-wrap{flex:none;height:58dvh;min-height:300px}.dh-side{flex:none;width:100%;height:auto;border-left:none;border-top:1px solid var(--dh-border);padding:10px;overflow:visible}.dh-toolbar{padding:6px 8px;gap:4px}.dh-toolbar .dh-title{font-size:14px;margin-right:2px}.dh-name{display:none}.dh-btn{padding:7px 9px}.dh-hint{display:none}.dh-save{display:none}}
 `;
 
 /** Inject once into the root that contains the app: document.head, or a ShadowRoot (HA custom panels live in shadow DOM). */

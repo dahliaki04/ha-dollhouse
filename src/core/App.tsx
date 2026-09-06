@@ -3,9 +3,10 @@ import { emptyLayout, type Item, type Layout, type Point } from "../domain/types
 import { deriveWalls } from "../domain/walls";
 import type { HassLike, LayoutStore } from "../ha/types";
 import { Canvas2D } from "./Canvas2D";
-import { Sidebar, TextField } from "./Sidebar";
+import { Sidebar } from "./Sidebar";
 import { Mark } from "./Mark";
-import { ToastBar, type Toast } from "./ui";
+import { Button, IconButton, Segmented, ToastBar, type Toast } from "./ui";
+import { Ic } from "./icons";
 import { Viewer } from "./Viewer";
 import { Welcome, markWelcomeSeen, welcomeSeen } from "./Welcome";
 import { Help } from "./Help";
@@ -62,10 +63,17 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
       else setModeState("edit");
       if (raw && (raw as Layout).rooms?.length === 0) setModeState("edit");
       // Dev harness hook: ?select=room opens the editor with the first room selected (for screenshots).
-      if (import.meta.env.DEV && new URLSearchParams(location.search).get("select") === "room" && raw) {
-        setModeState("edit");
-        const first = (raw as Layout).rooms?.[0];
-        if (first) setTimeout(() => dispatch({ type: "select", selection: { kind: "room", id: first.id } }), 0);
+      if (import.meta.env.DEV && raw) {
+        const sel = new URLSearchParams(location.search).get("select");
+        if (sel) setModeState("edit");
+        const l = raw as Layout;
+        const first = sel === "room" ? l.rooms?.[0] && { kind: "room" as const, id: l.rooms[0].id }
+          : sel === "item" ? l.items?.[0] && { kind: "item" as const, id: l.items[0].id }
+          : sel === "light" ? (() => { const it = l.items?.find((i) => i.entityId.startsWith("light.")); return it && { kind: "item" as const, id: it.id }; })()
+          : sel === "furniture" ? l.furniture?.[0] && { kind: "furniture" as const, id: l.furniture[0].id }
+          : sel === "walls" ? { kind: "walls" as const, ids: deriveWalls(l).slice(0, 3).map((w) => w.id) }
+          : undefined;
+        if (first) setTimeout(() => dispatch({ type: "select", selection: first }), 0);
       }
       setLoaded(true);
     });
@@ -75,7 +83,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   // Autosave, debounced.
   useEffect(() => {
     if (!loaded || !state.dirty) return;
-    const t = setTimeout(async () => {
+    const h = setTimeout(async () => {
       setSaveState("saving");
       try {
         await store.save(layoutRef.current);
@@ -86,7 +94,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
         setToast({ text: t("儲存失敗，請檢查連線或權限（需要管理員）"), kind: "error", ttl: 6000 });
       }
     }, 800);
-    return () => clearTimeout(t);
+    return () => clearTimeout(h);
   }, [state.layout, state.dirty, loaded, store]);
 
   const walls = useMemo(() => deriveWalls(state.layout), [state.layout]);
@@ -104,7 +112,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
   };
 
   const onScale = (units: number) => {
-    const metres = Number(prompt("這段距離實際是幾公尺？", "4"));
+    const metres = Number(prompt(t("這段距離實際是幾公尺？"), "4"));
     if (metres > 0) commit(setScale(state.layout, units, metres));
     setTool("select");
   };
@@ -155,10 +163,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
     }
   };
 
-  const roomTool = (tool: Tool) => tool === "rect" || tool === "polygon" || tool === "magic";
-  const toolBtn = (tool: Tool, label: string, key: string) => (
-    <button className={`dh-btn${state.tool === tool ? " on" : ""}`} disabled={!!state.layout.locked && roomTool(tool)} title={t("快捷鍵 {key}", { key })} onClick={() => setTool(tool)}>{label}</button>
-  );
+  const helpBtn = <IconButton label={t("說明")} icon={<Ic.help />} on={help} onClick={() => setHelp((h) => !h)} />;
 
   if (mode === "view" && loaded) {
     return (
@@ -171,7 +176,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
             onViewChange={(v) => dispatch({ type: "view", view: v })}
             toggle={!!render3D}
             onMoreInfo={onMoreInfo}
-            extra={<><button className="dh-btn" onClick={() => setMode("edit")}>{t("編輯")}</button><button className={`dh-btn${help ? " on" : ""}`} onClick={() => setHelp((h) => !h)} aria-label={t("說明")} title={t("說明")}>?</button></>}
+            extra={<><Button variant="ghost" icon={<Ic.pencil size={16} />} onClick={() => setMode("edit")}>{t("編輯")}</Button>{helpBtn}</>}
           />
           {help && <Help onClose={() => setHelp(false)} />}
           <ToastBar toast={toast} onDone={() => setToast(null)} />
@@ -180,24 +185,43 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
     );
   }
 
+  const locked = !!state.layout.locked;
+  const saveCls = saveState === "saving" ? "saving" : saveState === "error" ? "error" : state.dirty ? "dirty" : "";
+  const saveText = saveState === "saving" ? t("儲存中…") : saveState === "error" ? t("儲存失敗") : state.dirty ? t("未儲存") : loaded ? t("已儲存") : "";
+
   return (
     <div className="dh-app" ref={rootRef}>
-      <div className="dh-toolbar">
-        <span className="dh-title" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Mark /> Dollhouse</span>
-        <span className="dh-name" style={{ width: 200 }}><TextField label="" value={state.layout.name} onSave={(v) => commit({ ...state.layout, name: v })} /></span>
-        <button className={`dh-btn${state.layout.locked ? " on" : ""}`} title={state.layout.locked ? t("平面圖已鎖定：房間不能移動、變形、新增或刪除") : t("鎖定平面圖，避免誤動房間")} aria-pressed={!!state.layout.locked} onClick={() => { commit({ ...state.layout, locked: !state.layout.locked }); if (!state.layout.locked) setTool("select"); }}>{state.layout.locked ? t("🔒 已鎖定") : t("🔓 鎖定")}</button>
-        {toolBtn("select", t("選取"), "V")}
-        {toolBtn("rect", t("矩形房間"), "R")}
-        {toolBtn("polygon", t("多邊形房間"), "P")}
-        <button className={`dh-btn${state.tool === "magic" ? " on" : ""}`} disabled={!state.layout.background || !!state.layout.locked} title={state.layout.background ? t("點底圖上的房間內部，自動框出") : t("先上傳底圖")} onClick={() => setTool("magic")}>{t("點選房間")}</button>
-        <button className="dh-btn" aria-label={t("復原")} title={t("復原 (Ctrl+Z)")} disabled={!state.past.length} onClick={() => dispatch({ type: "undo" })}>↶</button>
-        <button className="dh-btn" aria-label={t("重做")} title={t("重做 (Ctrl+Y)")} disabled={!state.future.length} onClick={() => dispatch({ type: "redo" })}>↷</button>
-        <button className={`dh-btn${state.view === "2d" ? " on" : ""}`} onClick={() => dispatch({ type: "view", view: "2d" })}>2D</button>
-        <button className={`dh-btn${state.view === "3d" ? " on" : ""}`} disabled={!render3D} onClick={() => dispatch({ type: "view", view: "3d" })}>3D</button>
-        <button className="dh-btn" onClick={() => setMode("view")} disabled={state.layout.rooms.length === 0} title={t("切換到檢視模式")}>{t("完成")}</button>
-        <button className={`dh-btn${help ? " on" : ""}`} onClick={() => setHelp((h) => !h)} aria-label={t("說明")} title={t("說明")}>?</button>
+      <div className="dh-toolbar" role="toolbar" aria-label={t("工具列")}>
+        <span className="dh-title"><Mark /> Dollhouse</span>
+        <NameEditor value={state.layout.name} onSave={(v) => commit({ ...state.layout, name: v })} />
+
+        <div className="dh-tb-group tools">
+          <Segmented<Tool>
+            label={t("工具")}
+            value={state.tool === "scale" ? "select" : state.tool}
+            onChange={setTool}
+            options={[
+              { v: "select", icon: <Ic.cursor />, label: t("選取"), title: t("快捷鍵 {key}", { key: "V" }) },
+              { v: "rect", icon: <Ic.rect />, label: t("矩形房間"), title: t("快捷鍵 {key}", { key: "R" }), disabled: locked },
+              { v: "polygon", icon: <Ic.polygon />, label: t("多邊形房間"), title: t("快捷鍵 {key}", { key: "P" }), disabled: locked },
+              { v: "magic", icon: <Ic.wand />, label: t("點選房間"), title: state.layout.background ? t("點底圖上的房間內部，自動框出") : t("先上傳底圖"), disabled: !state.layout.background || locked },
+            ]}
+          />
+          <span className="dh-tb-group">
+            <IconButton label={t("復原 (Ctrl+Z)")} icon={<Ic.undo />} disabled={!state.past.length} onClick={() => dispatch({ type: "undo" })} />
+            <IconButton label={t("重做 (Ctrl+Y)")} icon={<Ic.redo />} disabled={!state.future.length} onClick={() => dispatch({ type: "redo" })} />
+            <span className="dh-tb-sep" />
+            <IconButton label={locked ? t("平面圖已鎖定：房間不能移動、變形、新增或刪除") : t("鎖定平面圖，避免誤動房間")} icon={locked ? <Ic.lock /> : <Ic.unlock />} on={locked} onClick={() => { commit({ ...state.layout, locked: !locked }); if (!locked) setTool("select"); }} />
+          </span>
+        </div>
+
         <span className="dh-spacer" />
-        <span className="dh-muted dh-save">{saveState === "saving" ? t("儲存中…") : saveState === "error" ? t("儲存失敗") : state.dirty ? t("未儲存") : loaded ? t("已儲存") : ""}</span>
+        <span className={`dh-save ${saveCls}`} aria-live="polite"><span className="dh-save-dot" aria-hidden="true" /><span className="dh-save-tx">{saveText}</span></span>
+        <div className="dh-tb-group">
+          <Segmented label={t("檢視")} value={state.view} onChange={(v) => dispatch({ type: "view", view: v })} options={[{ v: "2d", label: "2D" }, { v: "3d", label: "3D", disabled: !render3D }]} />
+          {helpBtn}
+          <Button variant="primary" icon={<Ic.check size={16} />} onClick={() => setMode("view")} disabled={state.layout.rooms.length === 0} title={t("切換到檢視模式")}>{t("完成")}</Button>
+        </div>
       </div>
       <div className="dh-body" ref={bodyRef} style={{ position: "relative" }}>
         {state.view === "2d" || !render3D ? (
@@ -234,5 +258,25 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
         <ToastBar toast={toast} onDone={() => setToast(null)} />
       </div>
     </div>
+  );
+}
+
+/** Layout name in the toolbar: click to edit inline, Enter saves, Esc cancels. */
+function NameEditor({ value, onSave }: { value: string; onSave: (v: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  if (!editing) {
+    return (
+      <button type="button" className="dh-title-name" title={t("重新命名")} onClick={() => { setDraft(value); setEditing(true); }}>
+        <span>{value || t("未命名")}</span>
+        <Ic.pencil size={13} />
+      </button>
+    );
+  }
+  const done = (save: boolean) => { if (save && draft.trim() && draft !== value) onSave(draft.trim()); setEditing(false); };
+  return (
+    <span className="dh-title-edit">
+      <input autoFocus value={draft} aria-label={t("名稱")} onChange={(e) => setDraft(e.target.value)} onBlur={() => done(true)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); done(true); } else if (e.key === "Escape") { e.preventDefault(); done(false); } }} />
+    </span>
   );
 }

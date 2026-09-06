@@ -1,13 +1,23 @@
+import { useEffect, useRef } from "react";
 import { t } from "../i18n";
+import { IconButton } from "./ui";
+import { Ic } from "./icons";
 
 /** Slide-in help: gestures, shortcuts and the concepts people ask about. */
 export function Help({ onClose }: { onClose: () => void }) {
-  const S = ({ title, rows }: { title: string; rows: [string, string][] }) => (
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const S = ({ title, rows }: { title: string; rows: [React.ReactNode, string][] }) => (
     <section>
       <h3>{title}</h3>
       <dl className="dh-help-list">
-        {rows.map(([k, v]) => (
-          <div key={k}>
+        {rows.map(([k, v], i) => (
+          <div key={i}>
             <dt>{k}</dt>
             <dd>{v}</dd>
           </div>
@@ -15,11 +25,12 @@ export function Help({ onClose }: { onClose: () => void }) {
       </dl>
     </section>
   );
+  const K = ({ k }: { k: string }) => <kbd className="dh-kbd">{k}</kbd>;
   return (
     <div className="dh-help" role="dialog" aria-label={t("說明")}>
       <div className="dh-help-head">
-        <b>{t("說明")}</b>
-        <button className="dh-btn small" onClick={onClose} aria-label={t("關閉")}>✕</button>
+        <span>{t("說明")}</span>
+        <IconButton ref={closeRef} label={t("關閉")} icon={<Ic.close />} onClick={onClose} />
       </div>
       <div className="dh-help-body">
         <S title={t("流程")} rows={[
@@ -45,10 +56,10 @@ export function Help({ onClose }: { onClose: () => void }) {
           [t("狀態框"), t("每間房一個 callout，內容在房間面板自選、排序，可加任何 entity。")],
         ]} />
         <S title={t("快捷鍵")} rows={[
-          ["V / R / P / M", t("選取 / 矩形 / 多邊形 / 點選房間")],
-          ["Ctrl+Z / Ctrl+Y", t("復原 / 重做")],
-          ["Delete", t("刪除選取的物件")],
-          ["Esc", t("取消選取、回到選取工具")],
+          [<><K k="V" /> <K k="R" /> <K k="P" /> <K k="M" /></>, t("選取 / 矩形 / 多邊形 / 點選房間")],
+          [<><K k="Ctrl" />+<K k="Z" /> / <K k="Y" /></>, t("復原 / 重做")],
+          [<K k="Delete" />, t("刪除選取的物件")],
+          [<K k="Esc" />, t("取消選取、回到選取工具")],
         ]} />
       </div>
     </div>

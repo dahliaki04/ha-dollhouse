@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { t } from "../i18n";
+import { IconButton } from "./ui";
+import { Ic } from "./icons";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Item, Layout, Point } from "../domain/types";
@@ -42,6 +44,8 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // The scene is static between rebuilds, so shadow maps are rendered once (see needsUpdate below), not per frame.
+    renderer.shadowMap.autoUpdate = false;
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 500);
@@ -78,6 +82,7 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
     if (!t) return;
     try {
       buildScene(t.scene, layout, hass);
+      t.renderer.shadowMap.needsUpdate = true;
       frame();
     } catch (e) {
       setFatal(t("3D 場景建立失敗：{msg}", { msg: (e as Error).message }));
@@ -88,7 +93,7 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
   const render = () => {
     const t = three.current;
     if (!t) return;
-    applyCutaway(t.scene, t.camera, t.controls.target);
+    if (applyCutaway(t.scene, t.camera, t.controls.target)) t.renderer.shadowMap.needsUpdate = true;
     t.renderer.render(t.scene, t.camera);
   };
 
@@ -150,12 +155,14 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
 
   return (
     <div ref={mount} style={{ position: "absolute", inset: 0, background: "linear-gradient(#e5e7eb,#f3f4f6)", touchAction: "none" }}>
-      <div className="dh-3d-controls">
-        <button className="dh-btn" aria-label={t("向左轉")} title={t("向左轉")} onClick={() => turn(-1)}>⟲</button>
-        <button className="dh-btn" aria-label={t("向右轉")} title={t("向右轉")} onClick={() => turn(1)}>⟳</button>
-        <button className="dh-btn" aria-label={t("放大")} title={t("放大")} onClick={() => zoomBy(1.25)}>+</button>
-        <button className="dh-btn" aria-label={t("縮小")} title={t("縮小")} onClick={() => zoomBy(1 / 1.25)}>−</button>
-        <button className="dh-btn" aria-label={t("重置")} title={t("重置")} onClick={() => { const tt = three.current; if (tt) { tt.camera.zoom = 1; tt.camera.updateProjectionMatrix(); } placeCamera(0); }}>⌂</button>
+      <div className="dh-3d-controls" role="toolbar" aria-label="3D">
+        <IconButton label={t("向左轉")} icon={<Ic.rotateL />} onClick={() => turn(-1)} />
+        <IconButton label={t("向右轉")} icon={<Ic.rotateR />} onClick={() => turn(1)} />
+        <div className="dh-3d-sep" />
+        <IconButton label={t("放大")} icon={<Ic.plus />} onClick={() => zoomBy(1.25)} />
+        <IconButton label={t("縮小")} icon={<Ic.minus />} onClick={() => zoomBy(1 / 1.25)} />
+        <div className="dh-3d-sep" />
+        <IconButton label={t("重置")} icon={<Ic.home />} onClick={() => { const tt = three.current; if (tt) { tt.camera.zoom = 1; tt.camera.updateProjectionMatrix(); } placeCamera(0); }} />
       </div>
       <div className="dh-hint">{t("拖曳旋轉，滾輪或雙指縮放，右鍵或雙指拖曳平移。狀態即時更新。")}</div>
       {fatal && (
@@ -185,8 +192,10 @@ interface CutawayWall {
  * Sims-style cutaway: a wall that has a room on the side facing away from the
  * camera would hide that room, so it is lowered. Far exterior walls stay tall.
  */
-function applyCutaway(scene: THREE.Scene, camera: THREE.Camera, target: THREE.Vector3) {
+/** Lower walls that face the camera; returns true when any wall height changed (shadow maps then need a refresh). */
+function applyCutaway(scene: THREE.Scene, camera: THREE.Camera, target: THREE.Vector3): boolean {
   const list = (scene.userData.cutaway as CutawayWall[] | undefined) ?? [];
+  let changed = false;
   const cx = camera.position.x - target.x;
   const cz = camera.position.z - target.z;
   const cl = Math.hypot(cx, cz) || 1;
@@ -196,9 +205,12 @@ function applyCutaway(scene: THREE.Scene, camera: THREE.Camera, target: THREE.Ve
     const facing = w.n[0] * dx + w.n[1] * dz; // >0: +n side faces the camera
     const farHasRoom = facing > 0 ? w.roomMinus : w.roomPlus;
     const target_h = farHasRoom ? Math.min(w.h, w.cutH) : w.h;
-    w.mesh.scale.y = target_h / w.h;
+    const sy = target_h / w.h;
+    if (Math.abs(w.mesh.scale.y - sy) > 1e-6) changed = true;
+    w.mesh.scale.y = sy;
     w.mesh.position.y = target_h / 2;
   }
+  return changed;
 }
 
 let poolTex: THREE.Texture | null = null;
@@ -396,6 +408,12 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       for (const [px, py] of fixturePositions(it, layout.metresPerUnit)) expanded.push({ ...it, x: px, y: py, repeat: null });
     } else expanded.push(it);
   }
+  // Lights near a wall leak the most, so they get shadow maps first. Shadow maps are static (see autoUpdate),
+  // but each one is a texture sampler in every lit material, so the count stays well under the GPU limit.
+  const wallDistM = (it: Item) => { const n = nearestWall(walls, [it.x, it.y]); return n ? n.d * mpu : 99; };
+  const isOnLight = (it: Item) => resolveKind(it, hass) === "light" && hass.states[it.entityId]?.state === "on";
+  expanded.sort((a, b) => (isOnLight(a) ? wallDistM(a) : 1e3) - (isOnLight(b) ? wallDistM(b) : 1e3));
+  let shadowBudget = 10;
   for (const item of expanded) {
     if (resolveKind(item, hass) === "light" && item.fixture === "room") continue; // whole-room lighting: floor tint only
     if (effectiveShowIn(item, hass) === "frame") continue; // listed in the room frame instead
@@ -425,9 +443,10 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       let lx = x;
       let lz = z;
       let inN: [number, number] = [0, 0];
+      const near = nearestWall(walls, [item.x, item.y]);
+      const room = layout.rooms.find((r) => pointInPolygon([item.x, item.y], r.points));
       if (hugsWall(item, hass)) {
         const inward = wallInward(layout, item);
-        const near = nearestWall(walls, [item.x, item.y]);
         const off = (near && near.d < 0.5 / mpu ? near.wall.thickness / 2 : 0) + 0.04;
         inN = [inward.n[0], inward.n[1]];
         lx = x + inN[0] * off;
@@ -444,7 +463,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       if (on) {
         const beam = hasBeam(item, hass) ? effectiveBeam(item, hass) : "down";
         const wallSide = hugsWall(item, hass);
-        const poolMat = new THREE.MeshBasicMaterial({ map: poolTexture(), color, transparent: true, opacity: 0.1 + 0.16 * bright, depthWrite: false, blending: THREE.AdditiveBlending });
+        const poolMat = new THREE.MeshBasicMaterial({ map: poolTexture(), color, transparent: true, opacity: 0.1 + 0.16 * bright, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
         const rotZ = THREE.MathUtils.degToRad(-(item.rotation ?? 0));
         // Pools hug the wall on the room side when wall-mounted, else centre on the fixture.
         // Wide, feathered pools that overlap and merge; radius grows with mount height.
@@ -454,35 +473,81 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
         const px = wallSide ? lx + inN[0] * (poolD / 2) : x;
         const pz = wallSide ? lz + inN[1] * (poolD / 2) : z;
         const addPool = (yy: number, faceDown: boolean) => {
-          const pool = new THREE.Mesh(new THREE.PlaneGeometry(poolW, poolD), poolMat);
-          pool.rotation.x = faceDown ? Math.PI / 2 : -Math.PI / 2;
-          pool.rotation.z = rotZ;
-          pool.position.set(px, yy, pz);
-          scene.add(pool);
+          if (room) {
+            // The pool is the room's own polygon with the glow texture projected onto it, so it cannot
+            // spill under a wall into the next room (the texture is transparent outside its rectangle).
+            const shape = new THREE.Shape(room.points.map((p) => { const [sx, sz] = toM(p); return new THREE.Vector2(sx, sz); }));
+            const geo = new THREE.ShapeGeometry(shape);
+            const pos = geo.attributes.position;
+            const uv = geo.attributes.uv as THREE.BufferAttribute;
+            const cs = Math.cos(rotZ);
+            const sn = Math.sin(rotZ);
+            for (let k = 0; k < pos.count; k++) {
+              const dx = pos.getX(k) - px;
+              const dz = pos.getY(k) - pz;
+              uv.setXY(k, (dx * cs - dz * sn) / poolW + 0.5, (dx * sn + dz * cs) / poolD + 0.5);
+            }
+            uv.needsUpdate = true;
+            const pool = new THREE.Mesh(geo, poolMat);
+            pool.rotation.x = Math.PI / 2; // shape (x,y) → (x,z)
+            pool.position.y = yy;
+            scene.add(pool);
+          } else {
+            const pool = new THREE.Mesh(new THREE.PlaneGeometry(poolW, poolD), poolMat);
+            pool.rotation.x = faceDown ? Math.PI / 2 : -Math.PI / 2;
+            pool.rotation.z = rotZ;
+            pool.position.set(px, yy, pz);
+            scene.add(pool);
+          }
         };
         if (beam === "down" || beam === "both") addPool(0.02, false);
         if (beam === "up" || beam === "both") {
           if (wallSide) {
             // No ceiling in a dollhouse, so an up-throw reads as a glow on the wall above the fixture.
             const gh = Math.max(0.3, ceilingH - y + 0.1);
-            const wash = new THREE.Mesh(new THREE.PlaneGeometry(poolW + 0.8, gh), new THREE.MeshBasicMaterial({ map: washTexture(), color, transparent: true, opacity: 0.45 + 0.35 * bright, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
-            wash.position.set(lx + inN[0] * 0.015, y - 0.1 + gh / 2, lz + inN[1] * 0.015);
-            wash.rotation.y = rotZ;
+            let ww = poolW + 0.8;
+            let wx = lx + inN[0] * 0.015;
+            let wz = lz + inN[1] * 0.015;
+            let wrot = rotZ;
+            if (near && near.d < 0.5 / mpu) {
+              // Keep the wash on its own wall: no wider than the wall, centred within its ends.
+              const a = toM(near.wall.a);
+              const b = toM(near.wall.b);
+              const wl = Math.hypot(b[0] - a[0], b[1] - a[1]);
+              const ux = (b[0] - a[0]) / wl;
+              const uz = (b[1] - a[1]) / wl;
+              ww = Math.min(ww, wl);
+              let along = (lx - a[0]) * ux + (lz - a[1]) * uz;
+              along = Math.max(ww / 2, Math.min(wl - ww / 2, along));
+              wx = a[0] + ux * along + inN[0] * 0.015;
+              wz = a[1] + uz * along + inN[1] * 0.015;
+              wrot = -Math.atan2(uz, ux);
+            }
+            const wash = new THREE.Mesh(new THREE.PlaneGeometry(ww, gh), new THREE.MeshBasicMaterial({ map: washTexture(), color, transparent: true, opacity: 0.45 + 0.35 * bright, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+            wash.position.set(wx, y - 0.1 + gh / 2, wz);
+            wash.rotation.y = wrot;
             scene.add(wash);
           } else addPool(ceilingH - 0.02, true);
         }
         const ly = beam === "up" ? Math.min(ceilingH - 0.15, y + 0.15) : Math.max(0.2, y - 0.1);
+        const wd = near ? near.d * mpu : 99;
+        const useShadow = shadowBudget > 0 && wd < 3.5;
+        if (useShadow) shadowBudget--;
         if (!wallSide && beam === "down" && fixture !== "strip") {
-          // Ceiling fixtures: a soft downward cone lights the floor for real; no shadow maps needed (cheap on phones).
-          const sp = new THREE.SpotLight(color, 2.5 + 6 * bright, 6, 0.9, 0.8, 1.3);
+          // Ceiling fixtures: a soft downward cone. With a shadow map the walls block it; without one the
+          // cone is narrowed so its floor disc stops at the nearest wall instead of lighting the next room.
+          const rMax = wd + 0.4;
+          const angle = useShadow ? 0.9 : Math.max(0.3, Math.min(0.9, Math.atan2(rMax, Math.max(0.5, ly))));
+          const sp = new THREE.SpotLight(color, 2.5 + 6 * bright, 6, angle, 0.8, 1.3);
           sp.position.set(x, ly, z);
           sp.target.position.set(x, 0, z);
+          if (useShadow) { sp.castShadow = true; sp.shadow.mapSize.set(256, 256); sp.shadow.bias = -0.002; sp.shadow.camera.near = 0.2; sp.shadow.camera.far = 8; }
           scene.add(sp, sp.target);
         } else {
-          const pl = new THREE.PointLight(color, 5 + 14 * bright, 4.5, 1.6);
-          // Shadows stop wall-hugging lights leaking through walls onto the outside ground.
-          pl.castShadow = wallSide;
-          if (wallSide) { pl.shadow.mapSize.set(256, 256); pl.shadow.bias = -0.002; }
+          // Wall lights, strips and up-throws: an omni light; range limited to the room when it has no shadow map.
+          const range = useShadow ? 4.5 : Math.min(4.5, Math.max(1.2, wd + 0.8));
+          const pl = new THREE.PointLight(color, 5 + 14 * bright, range, 1.6);
+          if (useShadow) { pl.castShadow = true; pl.shadow.mapSize.set(256, 256); pl.shadow.bias = -0.002; pl.shadow.camera.near = 0.1; pl.shadow.camera.far = 6; }
           pl.position.set(wallSide ? lx + inN[0] * 0.2 : x, ly, wallSide ? lz + inN[1] * 0.2 : z);
           scene.add(pl);
         }

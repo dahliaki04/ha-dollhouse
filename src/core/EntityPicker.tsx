@@ -3,6 +3,9 @@ import { t } from "../i18n";
 import { entitiesInArea, PLACEABLE_DOMAINS } from "../domain/entities";
 import type { Layout, Room } from "../domain/types";
 import { domainOf, friendlyName, type HassLike } from "../ha/types";
+import { Button, Chip, EmptyState, IconButton, Row, SearchInput, StatePill } from "./ui";
+import { Ic } from "./icons";
+import { DomainIcon } from "./glyphs";
 
 export interface EntityPickerProps {
   hass: HassLike;
@@ -99,58 +102,59 @@ export function EntityPicker({ hass, layout, room, onAdd, onRemove, onFocus }: E
   const checkedUnplaced = [...checked].filter((id) => !placed.has(id));
   const checkedPlaced = [...checked].filter((id) => placed.has(id));
 
-  const Row = ({ id }: { id: string }) => {
+  const EntityRow = ({ id }: { id: string }) => {
     const isPlaced = placed.has(id);
-    const dom = domainOf(id);
     return (
-      <li className={checked.has(id) ? "sel" : ""} style={{ gap: 6 }}>
-        <input type="checkbox" checked={checked.has(id)} onChange={() => toggle(id)} style={{ width: "auto" }} aria-label={isPlaced ? t("勾選以移除") : t("勾選以加入")} />
-        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }} onClick={() => (isPlaced ? onFocus?.(id) : toggle(id))} title={isPlaced ? t("在畫布上選取") : undefined}>
-          <span className="dh-muted" style={{ marginRight: 4 }}>{t(DOMAIN_LABEL[dom] ?? dom)}</span>
-          {friendlyName(hass, id)}
-          <span className="dh-muted" style={{ marginLeft: 6, fontSize: 11 }}>{id}</span>
-        </span>
-        {isPlaced ? (onRemove ? <button className="dh-btn small danger" onClick={() => removeNow([id])}>{t("移除")}</button> : <span className="dh-muted">{t("已放")}</span>) : <button className="dh-btn small" onClick={() => addNow([id])}>{t("加入")}</button>}
-      </li>
+      <Row
+        lead={<input type="checkbox" checked={checked.has(id)} onChange={() => toggle(id)} aria-label={isPlaced ? t("勾選以移除") : t("勾選以加入")} />}
+        selected={checked.has(id)}
+        primary={<><DomainIcon dom={domainOf(id)} size={14} /><span className="dh-ellipsis">{friendlyName(hass, id)}</span></>}
+        secondary={id}
+        onClick={() => (isPlaced ? onFocus?.(id) : toggle(id))}
+        title={isPlaced ? t("在畫布上選取") : undefined}
+        trailing={
+          isPlaced
+            ? <><StatePill state={t("已放")} />{onRemove && <IconButton size="sm" danger label={t("移除")} icon={<Ic.close size={15} />} onClick={() => removeNow([id])} />}</>
+            : <IconButton size="sm" label={t("加入")} icon={<Ic.plus size={16} />} onClick={() => addNow([id])} />
+        }
+      />
     );
   };
 
   return (
-    <div>
-      <div className="dh-field">
-        <input value={q} placeholder={t("搜尋名稱、entity id 或裝置…")} onChange={(e) => setQ(e.target.value)} />
-      </div>
-      <div className="dh-row" style={{ marginBottom: 6 }}>
-        <button className={`dh-btn small${domain === null ? " on" : ""}`} onClick={() => setDomain(null)}>{t("全部")}</button>
-        {domains.map((d) => <button key={d} className={`dh-btn small${domain === d ? " on" : ""}`} onClick={() => setDomain(domain === d ? null : d)}>{t(DOMAIN_LABEL[d] ?? d)}</button>)}
+    <div className="dh-picker">
+      <SearchInput value={q} placeholder={t("搜尋名稱、entity id 或裝置…")} onChange={setQ} />
+      <div className="dh-chips" style={{ margin: "8px 0" }}>
+        <Chip on={domain === null} onClick={() => setDomain(null)}>{t("全部")}</Chip>
+        {domains.map((d) => <Chip key={d} on={domain === d} onClick={() => setDomain(domain === d ? null : d)}>{t(DOMAIN_LABEL[d] ?? d)}</Chip>)}
       </div>
       {checked.size > 0 && (
         <div className="dh-row" style={{ marginBottom: 8 }}>
-          {checkedUnplaced.length > 0 && <button className="dh-btn on" onClick={() => addNow(checkedUnplaced)}>{t("加入勾選的 {n} 個", { n: checkedUnplaced.length })}</button>}
-          {checkedPlaced.length > 0 && onRemove && <button className="dh-btn danger" onClick={() => removeNow(checkedPlaced)}>{t("移除勾選的 {n} 個", { n: checkedPlaced.length })}</button>}
-          <button className="dh-btn small" onClick={() => setChecked(new Set())}>{t("清除勾選")}</button>
+          {checkedUnplaced.length > 0 && <Button variant="primary" size="sm" icon={<Ic.plus size={14} />} onClick={() => addNow(checkedUnplaced)}>{t("加入勾選的 {n} 個", { n: checkedUnplaced.length })}</Button>}
+          {checkedPlaced.length > 0 && onRemove && <Button variant="danger" size="sm" onClick={() => removeNow(checkedPlaced)}>{t("移除勾選的 {n} 個", { n: checkedPlaced.length })}</Button>}
+          <Button variant="ghost" size="sm" onClick={() => setChecked(new Set())}>{t("清除勾選")}</Button>
         </div>
       )}
 
       {room && (
         <>
-          <div className="dh-row" style={{ justifyContent: "space-between" }}>
-            <span className="dh-muted">{room.areaId ? t("{name} 的裝置 ({n})", { name: hass.areas[room.areaId]?.name ?? room.areaId, n: areaRows.length }) : t("這間房間還沒連結 area")}</span>
-            <span className="dh-row">
-              {areaRows.some((id) => !placed.has(id)) && <button className="dh-btn small" onClick={() => addNow(areaRows)}>{t("全部加入")}</button>}
-              {onRemove && areaRows.some((id) => placed.has(id)) && <button className="dh-btn small danger" onClick={() => removeNow(areaRows)}>{t("全部移除")}</button>}
+          <div className="dh-row between">
+            <span className="dh-list-cap">{room.areaId ? t("{name} 的裝置 ({n})", { name: hass.areas[room.areaId]?.name ?? room.areaId, n: areaRows.length }) : t("這間房間還沒連結 area")}</span>
+            <span className="dh-row" style={{ gap: 2 }}>
+              {areaRows.some((id) => !placed.has(id)) && <Button size="sm" variant="ghost" onClick={() => addNow(areaRows)}>{t("全部加入")}</Button>}
+              {onRemove && areaRows.some((id) => placed.has(id)) && <Button size="sm" variant="danger" onClick={() => removeNow(areaRows)}>{t("全部移除")}</Button>}
             </span>
           </div>
-          <ul className="dh-list">{areaRows.map((id) => <Row key={id} id={id} />)}</ul>
+          <ul className="dh-list">{areaRows.map((id) => <EntityRow key={id} id={id} />)}</ul>
           {!showAll && !needle && !domain && (
-            <button className="dh-btn small" style={{ marginTop: 6 }} onClick={() => setShowAll(true)}>{t("顯示其他房間 / 所有裝置")}</button>
+            <Button size="sm" variant="ghost" style={{ marginTop: 4 }} icon={<Ic.chevronDown size={14} />} onClick={() => setShowAll(true)}>{t("顯示其他房間 / 所有裝置")}</Button>
           )}
         </>
       )}
 
       {(showAll || needle || domain) && (
         <div style={{ marginTop: 8 }}>
-          {room && <div className="dh-muted" style={{ marginBottom: 4 }}>{t("其他裝置")}</div>}
+          {room && <div className="dh-list-cap">{t("其他裝置")}</div>}
           {groups.map((g) => {
             if (shown >= CAP) return null;
             const rows = g.ids.slice(0, Math.max(0, CAP - shown));
@@ -158,16 +162,16 @@ export function EntityPicker({ hass, layout, room, onAdd, onRemove, onFocus }: E
             const addable = g.ids.filter((id) => !placed.has(id));
             return (
               <div key={g.devId || "none"} style={{ marginBottom: 6 }}>
-                <div className="dh-row" style={{ justifyContent: "space-between", padding: "2px 4px" }}>
-                  <span style={{ fontWeight: 600, fontSize: 12 }}>{g.name}{g.area ? <span className="dh-muted"> · {g.area}</span> : null}</span>
-                  {g.devId && addable.length > 1 && <button className="dh-btn small" onClick={() => addNow(addable)}>{t("整個裝置 ({n})", { n: addable.length })}</button>}
+                <div className="dh-row between" style={{ padding: "4px 4px 2px" }}>
+                  <span className="dh-ellipsis" style={{ fontWeight: 600, fontSize: 12 }}>{g.name}{g.area ? <span className="dh-muted"> · {g.area}</span> : null}</span>
+                  {g.devId && addable.length > 1 && <Button size="sm" variant="ghost" onClick={() => addNow(addable)}>{t("整個裝置 ({n})", { n: addable.length })}</Button>}
                 </div>
-                <ul className="dh-list">{rows.map((id) => <Row key={id} id={id} />)}</ul>
+                <ul className="dh-list">{rows.map((id) => <EntityRow key={id} id={id} />)}</ul>
               </div>
             );
           })}
-          {rest.length === 0 && <div className="dh-muted">{t("沒有符合的裝置")}</div>}
-          {rest.length > CAP && <div className="dh-muted">{t("只顯示前 {n} 個，輸入關鍵字縮小範圍", { n: CAP })}</div>}
+          {rest.length === 0 && <EmptyState title={t("沒有符合的裝置")} hint={needle ? t("換個關鍵字，或清掉篩選。") : undefined} />}
+          {rest.length > CAP && <div className="dh-help-text">{t("只顯示前 {n} 個，輸入關鍵字縮小範圍", { n: CAP })}</div>}
         </div>
       )}
     </div>

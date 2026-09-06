@@ -7,6 +7,7 @@ import { domainOf, type HassLike } from "../ha/types";
 import { Canvas2D } from "./Canvas2D";
 import { render3D } from "./lazy3d";
 import { t } from "../i18n";
+import { Segmented } from "./ui";
 
 export interface ViewerProps {
   layout: Layout;
@@ -61,16 +62,15 @@ export function Viewer({ layout, hass, view, onViewChange, toggle = true, rooms,
       ) : (
         <div className="dh-canvas-wrap" style={{ position: "absolute", inset: 0, minHeight: 0 }}>{render3D({ layout: filtered, hass })}</div>
       )}
-      <div className="dh-viewer-controls">
-        {toggle && (
-          <>
-            <button className={`dh-btn${view === "2d" ? " on" : ""}`} onClick={() => onViewChange?.("2d")}>2D</button>
-            <button className={`dh-btn${view === "3d" ? " on" : ""}`} onClick={() => onViewChange?.("3d")}>3D</button>
-          </>
-        )}
-        {extra}
-      </div>
-      {view === "2d" && <div className="dh-viewer-hint dh-muted">{t("點一下切換開關，長按開啟詳細資訊")}</div>}
+      {(toggle || extra) && (
+        <div className="dh-viewer-controls">
+          <div className="dh-float">
+            {toggle && <Segmented label={t("檢視")} value={view} onChange={(v) => onViewChange?.(v)} options={[{ v: "2d", label: "2D" }, { v: "3d", label: "3D" }]} />}
+            {extra}
+          </div>
+        </div>
+      )}
+      {view === "2d" && <div className="dh-viewer-hint">{t("點一下切換開關，長按開啟詳細資訊")}</div>}
     </div>
   );
 }

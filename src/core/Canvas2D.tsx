@@ -473,7 +473,7 @@ export function Canvas2D(p: Canvas2DProps) {
         </defs>
 
         {/* canvas sheet */}
-        <rect className="dh-bg" x={0} y={0} width={layout.canvas.width} height={layout.canvas.height} fill="#fff" />
+        <rect className="dh-bg" x={0} y={0} width={layout.canvas.width} height={layout.canvas.height} fill={p.readOnly ? "transparent" : "#fff"} />
         {layout.background && (
           <image className="dh-bg" href={layout.background.url} x={0} y={0} width={layout.canvas.width} height={layout.canvas.height} preserveAspectRatio="xMidYMid meet" opacity={layout.background.opacity ?? 0.6} />
         )}

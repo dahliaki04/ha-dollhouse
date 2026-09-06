@@ -139,3 +139,12 @@ export function ModeGlyph({ mode, s, color }: { mode: string; s: number; color: 
   }
   return <g transform={`scale(${k}) translate(-12 -12)`}>{body}</g>;
 }
+
+/** DomainGlyph wrapped in its own <svg>, for use in HTML (lists, headers). */
+export function DomainIcon({ dom, size = 16, color = "currentColor" }: { dom: string; size?: number; color?: string }) {
+  return (
+    <svg viewBox="-12 -12 24 24" width={size} height={size} aria-hidden="true" focusable="false" style={{ display: "block", flex: "none" }}>
+      <DomainGlyph dom={dom} s={24} color={color} />
+    </svg>
+  );
+}

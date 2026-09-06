@@ -283,6 +283,13 @@ export const en: Record<string, string> = {
   "只顯示前 {n} 個，輸入關鍵字縮小範圍": "Showing the first {n}; type to narrow down",
   "Home Assistant area": "Home Assistant area",
 
+  // entity field
+  "更換": "Change",
+  "選用": "Use",
+  "搜尋要改綁的 entity…": "Search an entity to bind instead…",
+  "換綁只改控制它的 entity；型式、燈組、位置都保留。同 domain 的排前面。": "Rebinding only changes the controlling entity; fixture, group and position stay. Same-domain entities are listed first.",
+  "方向 (°)": "Direction (°)",
+
   // status frame content
   "狀態框內容": "Frame contents",
   "還沒有內容。下面搜尋任何 entity 加進來。": "Nothing yet. Search any entity below to add it.",

@@ -444,6 +444,7 @@ function ItemPanel(p: SidebarProps & { item: Item }) {
   return (
     <section>
       <PanelHeader title={friendlyName(hass, item.entityId)} subtitle={t("{id} · 狀態 {state}", { id: item.entityId, state: s?.state ?? "unknown" })} onBack={() => p.onSelect(null)} />
+      <EntityField hass={hass} value={item.entityId} onChange={(id) => p.onCommit(updateItem(layout, item.id, { entityId: id }))} />
       <div className="dh-field">
         <label>{t("顯示方式")}</label>
         <select value={item.kind} onChange={(e) => p.onCommit(updateItem(layout, item.id, { kind: e.target.value as ItemKind }))}>
@@ -685,6 +686,45 @@ function FurniturePanel(p: SidebarProps & { f: Furniture }) {
         <button className="dh-btn danger" onClick={() => { p.onCommit(removeFurniture(layout, f.id)); p.onSelect(null); p.onNotify?.(t("已刪除家具，可用復原鍵還原")); }}>{t("刪除")}</button>
       </div>
     </section>
+  );
+}
+
+/** Shows the bound entity; 更換 opens a search to rebind the item to another entity (everything else stays). */
+function EntityField({ hass, value, onChange }: { hass: HassLike; value: string; onChange: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLowerCase();
+  const list = open
+    ? Object.keys(hass.states)
+        .filter((id) => id !== value)
+        .filter((id) => !["automation", "script", "scene", "update", "button", "event", "image", "camera", "zone", "tts", "stt", "conversation"].includes(domainOf(id)))
+        .filter((id) => !needle || needle.split(/\s+/).every((w) => `${id} ${friendlyName(hass, id)}`.toLowerCase().includes(w)))
+        .sort((a, b) => (domainOf(a) === domainOf(value) ? 0 : 1) - (domainOf(b) === domainOf(value) ? 0 : 1) || friendlyName(hass, a).localeCompare(friendlyName(hass, b)))
+        .slice(0, 30)
+    : [];
+  return (
+    <div className="dh-field">
+      <label>Entity</label>
+      <div className="dh-row" style={{ flexWrap: "nowrap" }}>
+        <code style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12 }}>{value}</code>
+        <button className={`dh-btn small${open ? " on" : ""}`} onClick={() => { setOpen((o) => !o); setQ(""); }}>{open ? t("取消") : t("更換")}</button>
+      </div>
+      {open && (
+        <>
+          <input autoFocus value={q} placeholder={t("搜尋要改綁的 entity…")} onChange={(e) => setQ(e.target.value)} style={{ marginTop: 6 }} />
+          <ul className="dh-list" style={{ maxHeight: 240, overflow: "auto", border: "1px solid var(--dh-border)", borderRadius: 6, marginTop: 4 }}>
+            {list.map((id) => (
+              <li key={id} style={{ gap: 6, cursor: "pointer" }} onClick={() => { onChange(id); setOpen(false); }}>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{friendlyName(hass, id)} <span className="dh-muted" style={{ fontSize: 11 }}>{id} · {hass.states[id]?.state}</span></span>
+                <span className="dh-muted">{t("選用")}</span>
+              </li>
+            ))}
+            {list.length === 0 && <li className="dh-muted">{t("沒有符合的裝置")}</li>}
+          </ul>
+          <div className="dh-muted">{t("換綁只改控制它的 entity；型式、燈組、位置都保留。同 domain 的排前面。")}</div>
+        </>
+      )}
+    </div>
   );
 }
 

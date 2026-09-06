@@ -44,6 +44,9 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
       return;
     }
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    // Filmic tone mapping: dozens of lights add up without blowing the floor out to pure white.
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.95;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // The scene is static between rebuilds, so shadow maps are rendered once (see needsUpdate below), not per frame.
@@ -452,6 +455,14 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
   const isOnLight = (it: Item) => resolveKind(it, hass) === "light" && hass.states[it.entityId]?.state === "on";
   expanded.sort((a, b) => (isOnLight(a) ? wallDistM(a) : 1e3) - (isOnLight(b) ? wallDistM(b) : 1e3));
   let shadowBudget = 10;
+  // Rooms with many fixtures on (a 12-downlight living room) would saturate: scale each light so the
+  // room's total stays in range. 3 fixtures = full strength, 12 = half, 27 = a third.
+  const roomOn = new Map<string, number>();
+  for (const it of expanded) {
+    if (!isOnLight(it) || it.fixture === "room") continue;
+    const r = layout.rooms.find((rr) => pointInPolygon([it.x, it.y], rr.points));
+    if (r) roomOn.set(r.id, (roomOn.get(r.id) ?? 0) + 1);
+  }
   for (const item of expanded) {
     if (resolveKind(item, hass) === "light" && item.fixture === "room") continue; // whole-room lighting: floor tint only
     if (effectiveShowIn(item, hass) === "frame") continue; // listed in the room frame instead
@@ -483,6 +494,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       let inN: [number, number] = [0, 0];
       const near = nearestWall(walls, [item.x, item.y]);
       const room = layout.rooms.find((r) => pointInPolygon([item.x, item.y], r.points));
+      const k = room ? 1 / Math.sqrt(Math.max(1, (roomOn.get(room.id) ?? 1) / 3)) : 1;
       if (hugsWall(item, hass)) {
         const inward = wallInward(layout, item);
         const off = (near && near.d < 0.5 / mpu ? near.wall.thickness / 2 : 0) + 0.04;
@@ -501,7 +513,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       if (on) {
         const beam = hasBeam(item, hass) ? effectiveBeam(item, hass) : "down";
         const wallSide = hugsWall(item, hass);
-        const poolMat = new THREE.MeshBasicMaterial({ map: poolTexture(), color, transparent: true, opacity: 0.1 + 0.16 * bright, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+        const poolMat = new THREE.MeshBasicMaterial({ map: poolTexture(), color, transparent: true, opacity: (0.1 + 0.16 * bright) * k, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
         const rotZ = THREE.MathUtils.degToRad(-(item.rotation ?? 0));
         // Pools hug the wall on the room side when wall-mounted, else centre on the fixture.
         // Wide, feathered pools that overlap and merge; radius grows with mount height.
@@ -561,7 +573,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
               wz = a[1] + uz * along + inN[1] * 0.015;
               wrot = -Math.atan2(uz, ux);
             }
-            const wash = new THREE.Mesh(new THREE.PlaneGeometry(ww, gh), new THREE.MeshBasicMaterial({ map: washTexture(), color, transparent: true, opacity: 0.45 + 0.35 * bright, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+            const wash = new THREE.Mesh(new THREE.PlaneGeometry(ww, gh), new THREE.MeshBasicMaterial({ map: washTexture(), color, transparent: true, opacity: (0.45 + 0.35 * bright) * k, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
             wash.position.set(wx, y - 0.1 + gh / 2, wz);
             wash.rotation.y = wrot;
             scene.add(wash);
@@ -576,7 +588,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
           // cone is narrowed so its floor disc stops at the nearest wall instead of lighting the next room.
           const rMax = wd + 0.4;
           const angle = useShadow ? 0.9 : Math.max(0.3, Math.min(0.9, Math.atan2(rMax, Math.max(0.5, ly))));
-          const sp = new THREE.SpotLight(color, 2.5 + 6 * bright, 6, angle, 0.8, 1.3);
+          const sp = new THREE.SpotLight(color, (2.5 + 6 * bright) * k, 6, angle, 0.8, 1.3);
           sp.position.set(x, ly, z);
           sp.target.position.set(x, 0, z);
           if (useShadow) { sp.castShadow = true; sp.shadow.mapSize.set(256, 256); sp.shadow.bias = -0.002; sp.shadow.camera.near = 0.2; sp.shadow.camera.far = 8; }
@@ -584,7 +596,7 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
         } else {
           // Wall lights, strips and up-throws: an omni light; range limited to the room when it has no shadow map.
           const range = useShadow ? 4.5 : Math.min(4.5, Math.max(1.2, wd + 0.8));
-          const pl = new THREE.PointLight(color, 5 + 14 * bright, range, 1.6);
+          const pl = new THREE.PointLight(color, (5 + 14 * bright) * k, range, 1.6);
           if (useShadow) { pl.castShadow = true; pl.shadow.mapSize.set(256, 256); pl.shadow.bias = -0.002; pl.shadow.camera.near = 0.1; pl.shadow.camera.far = 6; }
           pl.position.set(wallSide ? lx + inN[0] * 0.2 : x, ly, wallSide ? lz + inN[1] * 0.2 : z);
           scene.add(pl);

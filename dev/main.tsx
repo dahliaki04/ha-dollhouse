@@ -11,6 +11,7 @@ import { emptyLayout } from "../src/domain/types";
 import type { HassLike } from "../src/ha/types";
 
 const store = createLocalStore();
+const extraIds: string[] = [];
 
 function Harness({ hass, setHass }: { hass: HassLike; setHass: (h: HassLike) => void }) {
   void setHass;
@@ -20,6 +21,13 @@ function Harness({ hass, setHass }: { hass: HassLike; setHass: (h: HassLike) => 
 function Root() {
   const [hass, setHass] = useState<HassLike>(() => {
     const h = createMockHass(() => setHass({ ...h }));
+    // ?layout=<url> layouts reference real entity ids the mock does not know: fake them (all lights/switches on)
+    // so a real home renders with every light lit — the worst case for exposure and performance.
+    for (const id of extraIds) {
+      if (h.states[id]) continue;
+      const dom = id.split(".")[0];
+      h.states[id] = { entity_id: id, state: dom === "light" || dom === "switch" ? "on" : dom === "binary_sensor" ? "off" : "21.5", attributes: { friendly_name: id, ...(dom === "light" ? { brightness: 255 } : {}) } };
+    }
     return h;
   });
   return <Harness hass={hass} setHass={setHass} />;
@@ -32,7 +40,9 @@ async function boot() {
   const seed = createMockHass(() => {});
   if (q.get("layout")) {
     // ?layout=<url> loads a layout JSON (e.g. an export) into the store
-    await store.save(await (await fetch(q.get("layout")!)).json());
+    const l = await (await fetch(q.get("layout")!)).json();
+    for (const it of l.items ?? []) extraIds.push(it.entityId);
+    await store.save(l);
   } else if (q.has("empty")) {
     localStorage.removeItem("dollhouse:welcomed");
     await store.save(emptyLayout("我的家"));

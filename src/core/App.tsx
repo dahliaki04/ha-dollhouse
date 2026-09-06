@@ -71,6 +71,7 @@ export function App({ hass, store, onMoreInfo, render3D, initialView }: AppProps
           : sel === "item" ? l.items?.[0] && { kind: "item" as const, id: l.items[0].id }
           : sel === "light" ? (() => { const it = l.items?.find((i) => i.entityId.startsWith("light.")); return it && { kind: "item" as const, id: it.id }; })()
           : sel === "furniture" ? l.furniture?.[0] && { kind: "furniture" as const, id: l.furniture[0].id }
+          : sel === "door" ? (() => { const f = l.furniture?.find((x) => x.type === "door"); return f && { kind: "furniture" as const, id: f.id }; })()
           : sel === "walls" ? { kind: "walls" as const, ids: deriveWalls(l).slice(0, 3).map((w) => w.id) }
           : undefined;
         if (first) setTimeout(() => dispatch({ type: "select", selection: first }), 0);

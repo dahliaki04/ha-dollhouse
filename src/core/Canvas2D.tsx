@@ -6,7 +6,8 @@ import { nearestWall, wallThicknessUnits } from "../domain/walls";
 import { lightColor, Marker } from "./markers";
 import { FurnitureGlyph } from "./FurnitureGlyph";
 import { RoomFrame, frameLayout, frameMargins } from "./RoomFrame";
-import type { Furniture } from "../domain/furniture";
+import { isOpening, type Furniture } from "../domain/furniture";
+import { snapToWall } from "../domain/openings";
 import { moveRoom, updateFurniture, updateItem, updateRoom, type Selection, type Tool } from "./useEditor";
 import type { HassLike } from "../ha/types";
 import { effectiveShowIn, entitiesInArea, hugsWall, resolveKind } from "../domain/entities";
@@ -193,7 +194,11 @@ export function Canvas2D(p: Canvas2DProps) {
       const pt = snapToGridPt(toCanvas(e), gridUnits / 5);
       const L = layoutRef.current;
       if (selection?.kind === "item") p.onCommit(updateItem(L, selection.id, { x: pt[0], y: pt[1] }));
-      else if (selection?.kind === "furniture") p.onCommit(updateFurniture(L, selection.id, { x: pt[0], y: pt[1] }));
+      else if (selection?.kind === "furniture") {
+        const f = (L.furniture ?? []).find((x) => x.id === selection.id);
+        const s = f && isOpening(f) ? snapToWall(walls, toCanvas(e), f.rotation, 0.6 * m) : null;
+        p.onCommit(updateFurniture(L, selection.id, s ? { x: s.x, y: s.y, rotation: s.rotation } : { x: pt[0], y: pt[1] }));
+      }
       p.onPlaced?.();
       return;
     }
@@ -293,9 +298,16 @@ export function Canvas2D(p: Canvas2DProps) {
       const dx = pt[0] - drag.start[0];
       const dy = pt[1] - drag.start[1];
       if (!drag.moved && Math.hypot(dx, dy) < 0.05 * m) return;
-      const target = e.shiftKey ? [drag.orig[0] + dx, drag.orig[1] + dy] : snapToGridPt([drag.orig[0] + dx, drag.orig[1] + dy], gridUnits / 5);
+      let target: Point = e.shiftKey ? [drag.orig[0] + dx, drag.orig[1] + dy] : snapToGridPt([drag.orig[0] + dx, drag.orig[1] + dy], gridUnits / 5);
+      let fpatch: Partial<Furniture> = {};
+      const fdrag = (layoutRef.current.furniture ?? []).find((x) => x.id === drag.id);
+      if (fdrag && isOpening(fdrag) && !e.shiftKey) {
+        // Doors and windows live on walls: snap to the nearest one within 0.6 m and align to it.
+        const s = snapToWall(walls, [drag.orig[0] + dx, drag.orig[1] + dy], fdrag.rotation, 0.6 * m);
+        if (s) { target = [s.x, s.y]; fpatch = { rotation: s.rotation }; }
+      }
       setDrag({ ...drag, moved: true });
-      p.onPreview(updateFurniture(layoutRef.current, drag.id, { x: target[0], y: target[1] }));
+      p.onPreview(updateFurniture(layoutRef.current, drag.id, { x: target[0], y: target[1], ...fpatch }));
     } else if (drag.kind === "frame") {
       const dx = pt[0] - drag.start[0];
       const dy = pt[1] - drag.start[1];

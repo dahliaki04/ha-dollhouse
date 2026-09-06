@@ -3,7 +3,8 @@ import type { Layout } from "../domain/types";
 import { autoPlace, entitiesInArea } from "../domain/entities";
 import { centroid, pointInPolygon } from "../domain/geometry";
 import { domainOf, friendlyName } from "../ha/types";
-import { makeFurniture } from "../domain/furniture";
+import { isOpening, makeFurniture } from "../domain/furniture";
+import { longestEdge } from "../domain/openings";
 import { addFurniture, addItems, removeRoom, updateRoom } from "./useEditor";
 import { EntityPicker } from "./EntityPicker";
 import { Button, ColorInput, EmptyState, Field, Group, IconButton, NumberInput, PanelActions, PanelHeader, Row, Segmented, Select, StatePill } from "./ui";
@@ -115,7 +116,8 @@ export function RoomPanel(p: SidebarProps & { room: Room }) {
       <Group title={t("在這間加家具")}>
         <FurnitureChips onPick={(ft) => {
           const c = centroid(room.points);
-          const f = makeFurniture(ft, c[0], c[1]);
+          let f = makeFurniture(ft, c[0], c[1]);
+          if (isOpening(f)) { const e = longestEdge(room.points); f = { ...f, x: e.x, y: e.y, rotation: e.rotation }; }
           p.onCommit(addFurniture(layout, f));
           p.onSelect({ kind: "furniture", id: f.id });
         }} />

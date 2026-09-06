@@ -1,5 +1,5 @@
 import { t } from "../i18n";
-import { FURNITURE, makeFurniture, type Furniture, type FurnitureType } from "../domain/furniture";
+import { FURNITURE, isOpening, isWindow, makeFurniture, type Furniture, type FurnitureType } from "../domain/furniture";
 import { addFurniture, removeFurniture, updateFurniture } from "./useEditor";
 import { Button, ColorInput, Field, Group, NumberInput, PanelActions, PanelHeader, Segmented, Select } from "./ui";
 import { Ic } from "./icons";
@@ -10,6 +10,8 @@ export function FurniturePanel(p: SidebarProps & { f: Furniture }) {
   const { layout, f } = p;
   const spec = FURNITURE[f.type];
   const set = (patch: Partial<Furniture>) => p.onCommit(updateFurniture(layout, f.id, patch));
+  const opening = isOpening(f);
+  const window = isWindow(f);
   return (
     <>
       <PanelHeader icon={<Ic.sofa />} title={f.label || t(spec.label)} subtitle={t("家具")} onBack={() => p.onSelect(null)} />
@@ -24,9 +26,18 @@ export function FurniturePanel(p: SidebarProps & { f: Furniture }) {
       <Group title={t("尺寸")} right={<Button size="sm" variant="ghost" icon={<Ic.reset size={14} />} onClick={() => set({ w: spec.w, d: spec.d, h: spec.h, color: spec.color })}>{t("回預設尺寸")}</Button>}>
         <div className="dh-cols">
           <Field label={t("寬")}><NumberInput unit="m" label={t("寬 (m)")} step={0.1} value={f.w} onChange={(v) => v > 0 && set({ w: v })} /></Field>
-          <Field label={t("深")}><NumberInput unit="m" label={t("深 (m)")} step={0.1} value={f.d} onChange={(v) => v > 0 && set({ d: v })} /></Field>
+          {!opening && <Field label={t("深")}><NumberInput unit="m" label={t("深 (m)")} step={0.1} value={f.d} onChange={(v) => v > 0 && set({ d: v })} /></Field>}
           <Field label={t("高")}><NumberInput unit="m" label={t("高 (m)")} step={0.05} value={f.h} onChange={(v) => v >= 0 && set({ h: v })} /></Field>
+          {window && <Field label={t("窗台高")}><NumberInput unit="m" label={t("窗台高")} step={0.05} min={0} value={f.sill ?? spec.sill ?? 0.9} onChange={(v) => v >= 0 && set({ sill: v })} /></Field>}
         </div>
+        {opening && (
+          <Field label={t("開口")} hint={t("門窗會自動貼到最近的牆上；Shift 拖曳可自由放。")} className="dh-mt">
+            <div className="dh-row">
+              <Button size="sm" icon={<Ic.rotateR size={14} />} onClick={() => set({ rotation: (f.rotation + 180) % 360 })}>{t("開向另一側")}</Button>
+              {!window && f.type !== "sliding_door" && <Button size="sm" icon={<Ic.arrowOut size={14} />} onClick={() => set({ flip: !f.flip })}>{t("鉸鏈換邊")}</Button>}
+            </div>
+          </Field>
+        )}
         <Field label={t("方向")} className="dh-mt">
           <div className="dh-row nowrap">
             <Segmented size="sm" label={t("方向")} value={[0, 90, 180, 270].includes(f.rotation) ? f.rotation : -1} onChange={(v) => set({ rotation: v })} options={[0, 90, 180, 270].map((r) => ({ v: r, label: `${r}°` }))} />

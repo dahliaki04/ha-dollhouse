@@ -68,6 +68,12 @@ export function demoLayout(hass: HassLike): Layout {
     put("bathtub", 11.5, 6.5, 90),
     put("toilet", 9.0, 7.5, 0),
     put("sink", 9.0, 5.5, 180),
+    // Doors and windows (snap to walls; the 3D build cuts the openings).
+    put("door", 12, 4.2, 90), // front door, entrance east wall
+    put("door", 2.5, 5, 0), put("door", 5.9, 5, 0), put("door", 10.6, 5, 0),
+    put("door", 8.5, 6.8, 90, { flip: true }),
+    put("tall_window", 2.9, 0, 0), put("window", 7.5, 0, 0), put("small_window", 12, 1.5, 90),
+    put("window", 2.5, 8, 0, { w: 1.6 }), put("window", 6.75, 8, 0), put("small_window", 12, 6.5, 90),
   ];
   // On a real Home Assistant the mock entity ids do not exist: keep rooms, walls and furniture, drop unknown items.
   layout.items = layout.items.filter((i) => !!hass.states[i.entityId]);

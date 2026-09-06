@@ -466,4 +466,19 @@ export const en: Record<string, string> = {
   "類型": "Type",
   "高": "Height",
   "點圖示開關，雙擊拉到指定位置。": "Tap the icon to open/close; double-tap to set a position.",
+
+  // doors & windows (0.7.0)
+  "門窗": "Doors & windows",
+  "單開門": "Door",
+  "雙開門": "Double door",
+  "推拉門": "Sliding door",
+  "窗": "Window",
+  "落地窗": "Floor-to-ceiling window",
+  "小窗": "Small window",
+  "窗台高": "Sill height",
+  "開口": "Opening",
+  "開向另一側": "Open to other side",
+  "鉸鏈換邊": "Swap hinge",
+  "門窗會自動貼到最近的牆上；Shift 拖曳可自由放。": "Doors and windows snap to the nearest wall; hold Shift to drag freely.",
+  "在家具區選門或窗，拖到牆上會自動貼齊並在 3D 切出開口；純裝飾，不綁 entity。": "Pick a door or window in the furniture list; it snaps to a wall and cuts an opening in 3D. Decorative only, no entity.",
 };

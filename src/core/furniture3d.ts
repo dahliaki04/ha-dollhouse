@@ -117,6 +117,48 @@ export function buildFurniture(f: Furniture): THREE.Group {
       rug.castShadow = false;
       break;
     }
+    case "door":
+    case "double_door":
+    case "sliding_door": {
+      // Sits in the wall cut made by the 3D builder: frame + closed leaf/leaves, local z = through the wall.
+      const frame = mat(shade(f.color, 0.55));
+      const T = Math.max(0.1, D);
+      box(0.05, H, T + 0.02, -W / 2 - 0.025, H / 2, 0, frame);
+      box(0.05, H, T + 0.02, W / 2 + 0.025, H / 2, 0, frame);
+      box(W + 0.1, 0.06, T + 0.02, 0, H + 0.03, 0, frame);
+      if (f.type === "sliding_door") {
+        const pw = W / 2 + 0.05;
+        box(pw, H - 0.02, 0.04, -W / 2 + pw / 2, H / 2, -0.035, base);
+        box(pw, H - 0.02, 0.04, W / 2 - pw / 2, H / 2, 0.035, mat(shade(f.color, 1.15)));
+      } else if (f.type === "double_door") {
+        box(W / 2 - 0.02, H - 0.02, 0.04, -W / 4, H / 2, 0, base);
+        box(W / 2 - 0.02, H - 0.02, 0.04, W / 4, H / 2, 0, base);
+        box(0.03, 0.03, 0.1, -0.06, 1.0, 0, dark);
+        box(0.03, 0.03, 0.1, 0.06, 1.0, 0, dark);
+      } else {
+        box(W - 0.02, H - 0.02, 0.04, 0, H / 2, 0, base);
+        const hx = f.flip ? -W / 2 + 0.1 : W / 2 - 0.1;
+        box(0.03, 0.03, 0.1, hx, 1.0, 0, dark);
+      }
+      break;
+    }
+    case "window":
+    case "tall_window":
+    case "small_window": {
+      const sill = f.sill ?? 0.9;
+      const T = Math.max(0.1, D);
+      const frame = mat("#f8fafc");
+      box(0.05, H, T + 0.02, -W / 2 - 0.025, sill + H / 2, 0, frame);
+      box(0.05, H, T + 0.02, W / 2 + 0.025, sill + H / 2, 0, frame);
+      box(W + 0.1, 0.05, T + 0.04, 0, sill - 0.025, 0, frame);
+      box(W + 0.1, 0.05, T + 0.02, 0, sill + H + 0.025, 0, frame);
+      if (W > 0.9) box(0.04, H, 0.06, 0, sill + H / 2, 0, frame);
+      if (f.type === "tall_window") box(W, 0.04, 0.06, 0, sill + H * 0.7, 0, frame);
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.012), new THREE.MeshStandardMaterial({ color: "#bae6fd", transparent: true, opacity: 0.35, roughness: 0.15, metalness: 0.1, depthWrite: false }));
+      glass.position.set(0, sill + H / 2, 0);
+      g.add(glass);
+      break;
+    }
   }
   return g;
 }

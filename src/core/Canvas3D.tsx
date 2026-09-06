@@ -6,6 +6,8 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Item, Layout, Point } from "../domain/types";
 import { deriveWalls, nearestWall } from "../domain/walls";
+import { wallPieces, type OpeningCut } from "../domain/openings";
+import { FURNITURE, isWindow } from "../domain/furniture";
 import { bbox, centroid, pointInPolygon } from "../domain/geometry";
 import { effectiveBeam, effectiveHeight, effectiveShowIn, fixturePositions, frameItems, frameValue, hasBeam, hugsWall, resolveKind } from "../domain/entities";
 import { coverInward, coverView, curtainPanels, wallInward } from "../domain/covers";
@@ -179,8 +181,12 @@ export default function Canvas3D({ layout, hass }: Canvas3DProps) {
 }
 
 interface CutawayWall {
-  mesh: THREE.Mesh;
+  mesh: THREE.Object3D;
+  /** Doors / windows: not scaled, just hidden while their wall is cut below their top. */
+  hideOnly?: boolean;
+  /** Piece height and bottom (a wall with openings is several stacked pieces). */
   h: number;
+  y0: number;
   /** Unit normal in (x, z). */
   n: [number, number];
   roomPlus: boolean;
@@ -204,11 +210,20 @@ function applyCutaway(scene: THREE.Scene, camera: THREE.Camera, target: THREE.Ve
   for (const w of list) {
     const facing = w.n[0] * dx + w.n[1] * dz; // >0: +n side faces the camera
     const farHasRoom = facing > 0 ? w.roomMinus : w.roomPlus;
-    const target_h = farHasRoom ? Math.min(w.h, w.cutH) : w.h;
-    const sy = target_h / w.h;
-    if (Math.abs(w.mesh.scale.y - sy) > 1e-6) changed = true;
+    if (w.hideOnly) {
+      const visible = !farHasRoom || w.cutH >= w.y0 + w.h;
+      if (w.mesh.visible !== visible) changed = true;
+      w.mesh.visible = visible;
+      continue;
+    }
+    const cut = farHasRoom ? w.cutH : w.y0 + w.h; // absolute height everything above is hidden
+    const vis = Math.min(w.h, Math.max(0, cut - w.y0));
+    const sy = Math.max(vis / w.h, 1e-4);
+    const visible = vis > 0.005;
+    if (Math.abs(w.mesh.scale.y - sy) > 1e-6 || w.mesh.visible !== visible) changed = true;
+    w.mesh.visible = visible;
     w.mesh.scale.y = sy;
-    w.mesh.position.y = target_h / 2;
+    w.mesh.position.y = w.y0 + vis / 2;
   }
   return changed;
 }
@@ -328,6 +343,19 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
 
   const walls = deriveWalls(layout);
   const cutaway: CutawayWall[] = [];
+  // Doors / windows snapped onto a wall (within 0.5 m): where along it, how wide, how tall.
+  const openings = (layout.furniture ?? []).flatMap((f) => {
+    const spec = FURNITURE[f.type];
+    if (!spec?.wall) return [];
+    const hit = nearestWall(walls, [f.x, f.y]);
+    if (!hit || hit.d > 0.5 / mpu) return [];
+    const wa = toM(hit.wall.a);
+    const wb = toM(hit.wall.b);
+    const wl = Math.hypot(wb[0] - wa[0], wb[1] - wa[1]);
+    const bottom = isWindow(f) ? f.sill ?? spec.sill ?? 0.9 : 0;
+    return [{ id: f.id, wallId: hit.wall.id, along: hit.t * wl, w: f.w, bottom, top: bottom + f.h }];
+  });
+  const wallSides = new Map<string, { n: [number, number]; roomPlus: boolean; roomMinus: boolean; cutH: number }>();
   // Walls.
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.9 });
   const wallMatExt = new THREE.MeshStandardMaterial({ color: 0xd9dee5, roughness: 0.9 });
@@ -345,13 +373,9 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
       continue;
     }
     const h = w.exterior ? layout.wallDefaults.height : Math.max(...w.rooms.map((id) => layout.rooms.find((r) => r.id === id)?.height ?? layout.wallDefaults.height));
-    const geo = new THREE.BoxGeometry(len + (w.exterior ? w.thickness : 0), h, w.thickness);
-    const mesh = new THREE.Mesh(geo, w.exterior ? wallMatExt : wallMat);
-    mesh.position.set((a[0] + b[0]) / 2, h / 2, (a[1] + b[1]) / 2);
-    mesh.rotation.y = -Math.atan2(b[1] - a[1], b[0] - a[0]);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    scene.add(mesh);
+    const ux = (b[0] - a[0]) / len;
+    const uz = (b[1] - a[1]) / len;
+    const rotY = -Math.atan2(b[1] - a[1], b[0] - a[0]);
     // Cutaway bookkeeping: which side of the wall has a room (probe 0.3 m to each side, canvas units).
     const nx = -(w.b[1] - w.a[1]);
     const nz = w.b[0] - w.a[0];
@@ -360,14 +384,24 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     const mid: Point = [(w.a[0] + w.b[0]) / 2, (w.a[1] + w.b[1]) / 2];
     const plus: Point = [mid[0] + (nx / nl) * probe, mid[1] + (nz / nl) * probe];
     const minus: Point = [mid[0] - (nx / nl) * probe, mid[1] - (nz / nl) * probe];
-    cutaway.push({
-      mesh,
-      h,
-      n: [nx / nl, nz / nl],
-      roomPlus: layout.rooms.some((r) => pointInPolygon(plus, r.points)),
-      roomMinus: layout.rooms.some((r) => pointInPolygon(minus, r.points)),
-      cutH: w.exterior ? 0.5 : 0.9,
-    });
+    const side = { n: [nx / nl, nz / nl] as [number, number], roomPlus: layout.rooms.some((r) => pointInPolygon(plus, r.points)), roomMinus: layout.rooms.some((r) => pointInPolygon(minus, r.points)), cutH: w.exterior ? 0.5 : 0.9 };
+    wallSides.set(w.id, side);
+    // Doors and windows on this wall become holes; exterior walls extend half a thickness past each end to close corners.
+    const cuts: OpeningCut[] = openings.filter((o) => o.wallId === w.id).map((o) => ({ along: o.along, w: o.w, bottom: o.bottom, top: o.top }));
+    const ext = w.exterior ? w.thickness / 2 : 0;
+    for (const pc of wallPieces(len, h, cuts)) {
+      const x0 = pc.x0 < 0.001 ? -ext : pc.x0;
+      const x1 = pc.x1 > len - 0.001 ? len + ext : pc.x1;
+      const ph = pc.y1 - pc.y0;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, ph, w.thickness), w.exterior ? wallMatExt : wallMat);
+      const c = (x0 + x1) / 2;
+      mesh.position.set(a[0] + ux * c, pc.y0 + ph / 2, a[1] + uz * c);
+      mesh.rotation.y = rotY;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      cutaway.push({ mesh, h: ph, y0: pc.y0, ...side });
+    }
   }
   scene.userData.cutaway = cutaway;
 
@@ -399,6 +433,10 @@ function buildScene(scene: THREE.Scene, layout: Layout, hass: HassLike) {
     g.position.set(fx, 0, fz);
     g.rotation.y = THREE.MathUtils.degToRad(-f.rotation);
     scene.add(g);
+    // A door or window disappears together with its wall when the cutaway lowers it.
+    const op = openings.find((o) => o.id === f.id);
+    const side = op && wallSides.get(op.wallId);
+    if (op && side) cutaway.push({ mesh: g, h: op.top, y0: 0, hideOnly: true, ...side });
   }
 
   // Items (a repeated light becomes one pseudo-item per fixture).

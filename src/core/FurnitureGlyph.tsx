@@ -123,6 +123,46 @@ export function FurnitureGlyph({ f, m, selected, onPointerDown }: FurnitureGlyph
         );
       case "rug":
         return <rect x={-W / 2} y={-D / 2} width={W} height={D} rx={0.06 * m} fill={c} fillOpacity={0.7} stroke={dark} strokeWidth={sw} strokeDasharray={`${0.08 * m} ${0.05 * m}`} />;
+      case "door":
+      case "double_door": {
+        // Plan symbol: gap in the wall, leaf open at 90° into the −y side, quarter-circle swing arc.
+        const leaves = f.type === "double_door" ? 2 : 1;
+        const lw = W / leaves;
+        return (
+          <>
+            <rect x={-W / 2} y={-D / 2} width={W} height={D} fill="#f8fafc" />
+            {Array.from({ length: leaves }, (_, i) => {
+              const dir = leaves === 2 ? (i === 0 ? 1 : -1) : f.flip ? -1 : 1;
+              const hx = leaves === 2 ? (i === 0 ? -W / 2 : W / 2) : f.flip ? W / 2 : -W / 2;
+              return (
+                <g key={i}>
+                  <path d={`M ${hx} ${-lw} A ${lw} ${lw} 0 0 ${dir === 1 ? 1 : 0} ${hx + dir * lw} 0`} fill="none" stroke={dark} strokeWidth={sw} strokeDasharray={`${0.05 * m} ${0.04 * m}`} />
+                  <line x1={hx} y1={0} x2={hx} y2={-lw} stroke={c} strokeWidth={sw * 2.5} strokeLinecap="round" />
+                </g>
+              );
+            })}
+          </>
+        );
+      }
+      case "sliding_door":
+        return (
+          <>
+            <rect x={-W / 2} y={-D / 2} width={W} height={D} fill="#f8fafc" />
+            <rect x={-W / 2} y={-D * 0.35} width={W * 0.55} height={D * 0.3} fill={c} stroke={dark} strokeWidth={sw} />
+            <rect x={-W * 0.05} y={D * 0.05} width={W * 0.55} height={D * 0.3} fill={light} stroke={dark} strokeWidth={sw} />
+          </>
+        );
+      case "window":
+      case "tall_window":
+      case "small_window":
+        return (
+          <>
+            <rect x={-W / 2} y={-D / 2} width={W} height={D} fill="#e0f2fe" stroke="#0369a1" strokeWidth={sw} />
+            <line x1={-W / 2} y1={0} x2={W / 2} y2={0} stroke="#0369a1" strokeWidth={sw} />
+            {f.type === "tall_window" && <line x1={-W / 2} y1={-D / 5} x2={W / 2} y2={-D / 5} stroke="#0369a1" strokeWidth={sw} />}
+            {f.type === "tall_window" && <line x1={-W / 2} y1={D / 5} x2={W / 2} y2={D / 5} stroke="#0369a1" strokeWidth={sw} />}
+          </>
+        );
     }
   })();
   return (

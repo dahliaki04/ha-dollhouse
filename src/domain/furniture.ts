@@ -4,7 +4,8 @@ import { newId, type Point } from "./types";
 export type FurnitureType =
   | "sofa" | "armchair" | "bed" | "table" | "coffee" | "chair" | "desk"
   | "wardrobe" | "cabinet" | "tv" | "fridge" | "counter"
-  | "toilet" | "bathtub" | "sink" | "plant" | "rug";
+  | "toilet" | "bathtub" | "sink" | "plant" | "rug"
+  | "door" | "double_door" | "sliding_door" | "window" | "tall_window" | "small_window";
 
 export interface Furniture {
   id: string;
@@ -20,6 +21,10 @@ export interface Furniture {
   h: number;
   color: string;
   label?: string | null;
+  /** Windows: bottom of the opening above the floor (m). */
+  sill?: number;
+  /** Doors: hinge on the other end. */
+  flip?: boolean;
 }
 
 export interface FurnitureSpec {
@@ -28,7 +33,10 @@ export interface FurnitureSpec {
   d: number;
   h: number;
   color: string;
-  group: "客廳" | "臥室" | "餐廚" | "衛浴" | "其他";
+  group: "門窗" | "客廳" | "臥室" | "餐廚" | "衛浴" | "其他";
+  /** Doors and windows sit on a wall and cut an opening in it. */
+  wall?: "door" | "window";
+  sill?: number;
 }
 
 export const FURNITURE: Record<FurnitureType, FurnitureSpec> = {
@@ -49,13 +57,27 @@ export const FURNITURE: Record<FurnitureType, FurnitureSpec> = {
   toilet: { label: "馬桶", w: 0.4, d: 0.7, h: 0.8, color: "#f8fafc", group: "衛浴" },
   bathtub: { label: "浴缸", w: 1.6, d: 0.75, h: 0.55, color: "#f8fafc", group: "衛浴" },
   sink: { label: "洗手台", w: 0.6, d: 0.5, h: 0.85, color: "#f8fafc", group: "衛浴" },
+  door: { label: "單開門", w: 0.9, d: 0.2, h: 2.1, color: "#b45309", group: "門窗", wall: "door" },
+  double_door: { label: "雙開門", w: 1.6, d: 0.2, h: 2.1, color: "#b45309", group: "門窗", wall: "door" },
+  sliding_door: { label: "推拉門", w: 1.8, d: 0.2, h: 2.1, color: "#64748b", group: "門窗", wall: "door" },
+  window: { label: "窗", w: 1.2, d: 0.2, h: 1.2, color: "#7dd3fc", group: "門窗", wall: "window", sill: 0.9 },
+  tall_window: { label: "落地窗", w: 2.4, d: 0.2, h: 2.2, color: "#7dd3fc", group: "門窗", wall: "window", sill: 0.05 },
+  small_window: { label: "小窗", w: 0.6, d: 0.2, h: 0.6, color: "#7dd3fc", group: "門窗", wall: "window", sill: 1.5 },
 };
 
-export const FURNITURE_GROUPS: FurnitureSpec["group"][] = ["客廳", "臥室", "餐廚", "衛浴", "其他"];
+export const FURNITURE_GROUPS: FurnitureSpec["group"][] = ["門窗", "客廳", "臥室", "餐廚", "衛浴", "其他"];
+
+/** Doors and windows: wall-bound, cut the wall in 3D, snap to walls in 2D. */
+export function isOpening(f: Pick<Furniture, "type">): boolean {
+  return !!FURNITURE[f.type]?.wall;
+}
+export function isWindow(f: Pick<Furniture, "type">): boolean {
+  return FURNITURE[f.type]?.wall === "window";
+}
 
 export function makeFurniture(type: FurnitureType, x: number, y: number): Furniture {
   const s = FURNITURE[type];
-  return { id: newId("f"), type, x, y, rotation: 0, w: s.w, d: s.d, h: s.h, color: s.color };
+  return { id: newId("f"), type, x, y, rotation: 0, w: s.w, d: s.d, h: s.h, color: s.color, ...(s.sill != null ? { sill: s.sill } : {}) };
 }
 
 /** Corners of the footprint in canvas units (for hit-testing / selection outline). */
